@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>字幕翻译人工评测 · en→zh</title>
+<style>
+  :root{
+    --bg:#0f1115; --card:#171a21; --card2:#1d212a; --line:#2a2f3a;
+    --fg:#e6e8ee; --dim:#9aa2b1; --dim2:#6f7787;
+    --a:#5aa9e6; --ok:#5ac48b; --warn:#e6685a;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+       font:15px/1.6 -apple-system,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif}
+  a{color:var(--a)}
+  .wrap{max-width:1500px;margin:0 auto;padding:24px 20px 120px}
+  h1{font-size:22px;margin:0 0 4px}
+  .sub{color:var(--dim);font-size:13px;margin-bottom:20px}
+
+  .bar{position:sticky;top:0;z-index:20;background:rgba(15,17,21,.94);
+       backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:10px 20px;
+       display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+  .bar .grow{flex:1}
+  .track{height:5px;background:var(--card2);border-radius:3px;overflow:hidden;min-width:160px;flex:1}
+  .track i{display:block;height:100%;background:var(--ok);width:0;transition:width .25s}
+  input[type=text]{background:var(--card2);border:1px solid var(--line);color:var(--fg);
+       border-radius:6px;padding:6px 9px;font-size:13px;width:150px}
+  button{background:var(--card2);border:1px solid var(--line);color:var(--fg);
+       border-radius:6px;padding:7px 13px;font-size:13px;cursor:pointer}
+  button:hover{border-color:var(--a)}
+  button.primary{background:var(--a);border-color:var(--a);color:#06202f;font-weight:600}
+  .muted{color:var(--dim);font-size:12px}
+
+  details.guide{background:var(--card);border:1px solid var(--line);border-radius:10px;
+       padding:12px 16px;margin-bottom:22px}
+  details.guide summary{cursor:pointer;font-weight:600}
+  details.guide ol{margin:10px 0 0;padding-left:22px}
+  details.guide li{margin:5px 0}
+  .kbd{background:var(--card2);border:1px solid var(--line);border-radius:4px;padding:0 5px;font-size:12px}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;
+        padding:18px;margin-bottom:26px}
+  .card.done{border-color:#2f5c45}
+  .head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+  .bid{font-weight:700;font-size:17px}
+  .tag{background:var(--card2);border:1px solid var(--line);border-radius:20px;
+       padding:1px 10px;font-size:12px;color:var(--dim)}
+  video{width:100%;max-height:400px;background:#000;border-radius:8px;display:block}
+  .noclip{background:var(--card2);border:1px dashed var(--line);border-radius:8px;
+       padding:22px;text-align:center;color:var(--dim);font-size:13px}
+  .vidwrap{margin-bottom:14px}
+  .vnote{margin-top:6px;padding:7px 10px;border-radius:6px;font-size:12.5px;
+       background:#3a2d12;border:1px solid #6b5518;color:#e8d9a8}
+
+  .tblwrap{overflow-x:auto;margin:6px 0 16px}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:900px}
+  th{text-align:left;font-weight:600;font-size:12px;color:var(--dim);
+     border-bottom:1px solid var(--line);padding:7px 9px;white-space:nowrap}
+  td{border-bottom:1px solid #22262f;padding:8px 9px;vertical-align:top;white-space:pre-line}
+  tr:hover td{background:#1b1f27}
+  tr.cur td{background:#1f2a33}
+  .tcol{width:58px;color:var(--dim2);font-size:12px;white-space:nowrap;cursor:pointer}
+  .tcol:hover{color:var(--a)}
+  .encol{width:24%;color:var(--dim)}
+  .ccol{border-left:2px solid var(--line)}
+
+  .rate{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:12px}
+  .side{background:var(--card2);border:1px solid var(--line);border-radius:9px;padding:11px 12px}
+  .side h4{margin:2px 0 10px;font-size:14px}
+  .dim{margin:9px 0}
+  .dim .lbl{font-size:13px;margin-bottom:3px}
+  .dim .hint{font-size:11px;color:var(--dim2);margin-bottom:5px}
+  .opts{display:flex;gap:4px}
+  .opts label{flex:1;text-align:center;background:var(--card);border:1px solid var(--line);
+       border-radius:6px;padding:5px 0;font-size:12px;cursor:pointer;user-select:none}
+  .opts label:hover{border-color:var(--dim)}
+  .opts input{display:none}
+  .opts label.on{background:#25405a;border-color:var(--a)}
+
+  .pick{margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .pick .lb{font-size:13px;min-width:118px}
+  .pick .opts{flex:1;max-width:620px}
+  .pick .opts label{padding:7px 4px;white-space:nowrap}
+  .pick.worst .opts label.on{background:#4a2a26;border-color:var(--warn)}
+  textarea{width:100%;background:var(--card2);border:1px solid var(--line);color:var(--fg);
+       border-radius:7px;padding:9px;font:14px/1.5 inherit;margin-top:10px;resize:vertical}
+  .flag{margin-top:8px;font-size:12px;color:var(--dim)}
+  .foot{position:fixed;left:0;right:0;bottom:0;background:rgba(15,17,21,.96);
+        border-top:1px solid var(--line);padding:11px 20px;display:flex;gap:10px;
+        align-items:center;justify-content:center;flex-wrap:wrap;z-index:30}
+</style>
+</head>
+<body>
+<div class="bar">
+  <b>字幕人工评测</b>
+  <span class="muted">标注员 ID</span>
+  <input type="text" id="rater" placeholder="例如 R01" autocomplete="off">
+  <div class="track"><i id="prog"></i></div>
+  <span class="muted" id="cnt">0 / 0</span>
+  <span class="grow"></span>
+  <button id="save">保存进度</button>
+</div>
+
+<div class="wrap">
+  <h1>英译中字幕质量评测</h1>
+  <div class="sub">20 个片段 · 每段 8–20 行 · 5 个中文版本盲测 · 共 600 次打分 · 预计 174–276 分钟（进度自动保存，建议分 4 次做完）</div>
+
+  <details class="guide" open>
+    <summary>标注说明（开始前请读完）</summary>
+    <ol>
+      <li>先填左上角<b>标注员 ID</b>，进度会自动存在本机浏览器里，可以中途关掉再回来，
+          建议<b>分 2 次做完</b>，累了别硬撑。</li>
+      <li>每段<b>先看视频</b>（带原声，无字幕），再对照下方表格里的<b>英文原文</b>与
+          <b>5 个中文版本</b>（译文 A、译文 B、译文 C、译文 D、译文 E）。点时间码可跳到该行画面。</li>
+      <li>哪一栏来自哪个系统<b>不告诉你</b>，且<b>每段的栏位顺序都不一样</b>——
+          请只凭译文本身判断，不要试图"认出"某一栏。</li>
+      <li>对每一栏<b>分别</b>按 6 个维度打 1–5 分。<b>各栏可以同分</b>，
+          质量确实接近时就给同分，不要为了区分硬拉开。</li>
+      <li><b>「语言规范」只看中文本身有没有错</b>：错别字、语法错、量词/搭配不当、
+          标点<b>用错</b>（半角逗号混进中文、引号括号只有一半）。
+          <b>标点的多少、句末加不加句号、用空格还是逗号断句，都属于风格差异，一律不扣分</b>
+          ——中文字幕本来就有"句末不加句号""用空格代替逗号"的惯例，各栏习惯不同是正常的。
+          译得别扭但没有语法错，扣<b>中文流畅度</b>不扣这一维；行太长/断句割裂扣<b>字幕规范</b>。</li>
+      <li>各栏的<b>分句方式不同是正常的</b>（来自不同字幕规范）。片段<b>首尾行</b>可能因截取而不完整，
+          <b>不要因此扣分</b>。</li>
+      <li>某一栏偶尔出现<b>空格子</b>也是正常的——那句译文被合并进了相邻行（各版合并粒度不同），
+          按整段读下来的效果打分即可。</li>
+      <li><b>10 个片段来自 5 部剧</b>，每部剧出现 2 段（时间与场景都不同）。
+          每段<b>独立评分</b>，不要用前一段的结论套后一段。</li>
+      <li>少数片段的<b>视频与字幕可能有几秒误差</b>（片源本身难以精确对时，段落顶部会有提示）。
+          这种情况下视频只当<b>场景参考</b>看，<b>不要</b>因此勾"数据有问题"；
+          只有画面内容与台词明显是两回事时才勾。画面里出现的播放器界面、剧情内的英文角标
+          （如新闻标题）都属于片源/剧情本身，与评测无关。</li>
+      <li>打完分后再选<b>整段最好的一栏</b>和<b>整段最差的一栏</b>（各选一个，不能选同一栏）：
+          标准是"哪一版让你最容易跟上剧情"。这两项与上面的分数<b>可以不完全一致</b>，按直觉选。</li>
+      <li>发现某段数据本身有问题（画面对不上台词、某栏内容明显不是同一段），勾选
+          <b>此段数据有问题</b>并在备注里写一句，这段会在分析时剔除。</li>
+      <li>全部做完点底部 <b>导出结果</b>，把下载到的 <code>ratings_&lt;ID&gt;.json</code> 发回给我们。</li>
+    </ol>
+  </details>
+
+  <div id="blocks"></div>
+</div>
+
+<div class="foot">
+  <span class="muted" id="status">未填写标注员 ID</span>
+  <button class="primary" id="exp">导出结果 (JSON)</button>
+  <button id="expcsv">导出 CSV</button>
+  <button id="clear">清空本机进度</button>
+</div>
+
+<script>
+const BLOCKS = [{"id": "B01", "show": "Hannibal", "episode": "S01E01", "genre": "Horror", "span": "00:12:15 – 00:12:52", "dur": 40.7, "clip": "clips/B01.mp4", "vnote": "", "rows": [{"t": "12:15", "rel": 1.5, "en": "You wrote the standard monograph on time of death by insect activity.", "c": {"A": "你写过用昆虫活动判定死亡时间的权威论文", "B": "你写过通过昆虫活动判断死亡时间的权威专著。", "C": "你写过那本昆虫活动推断死亡时间的权威专著。", "D": "你写了那篇关于昆虫活动断定死亡时间的权威论文", "E": "来判断死亡时间"}}, {"t": "12:18", "rel": 5.25, "en": "I found antler velvet in two of the wounds.", "c": {"A": "我在两处伤口里发现了鹿茸绒毛", "B": "我在两处伤口里发现了鹿茸绒毛。", "C": "两处伤口中均发现了鹿茸残留。", "D": "我在两处伤口发现了鹿茸绒", "E": "我在两处伤口里发现了鹿茸"}}, {"t": "12:22", "rel": 8.38, "en": "You not real FBI?", "c": {"A": "你不是真正的FBI？", "B": "你不是真正的FBI探员？", "C": "你不是正牌FBI？", "D": "你不是真正的联调局的？", "E": "你不是联调局探员对吧"}}, {"t": "12:24", "rel": 10.34, "en": "I'm a special investigator.", "c": {"A": "我是特别调查员", "B": "我是特别调查员。", "C": "我是特别调查员。", "D": "我是特别调查员", "E": "我是特别调查员"}}, {"t": "12:27", "rel": 13.39, "en": "Never been an FBI agent?", "c": {"A": "从没当过FBI探员？", "B": "从没当过FBI探员？", "C": "从没当过FBI探员？", "D": "从没当过联调局探员？", "E": "从没做过联调局探员吗"}}, {"t": "12:30", "rel": 16.31, "en": "Strict screening procedures.", "c": {"A": "筛查程序太严格", "B": "筛选程序很严格。", "C": "筛查程序很严格。", "D": "审查程序很严格", "E": "筛选程序太严苛了"}}, {"t": "12:32", "rel": 19.02, "en": "Detects instability.", "c": {"A": "能查出心理不稳定", "B": "会检测出不稳定因素。", "C": "不稳定因素会被筛掉。", "D": "会筛查出心理不稳定的人", "E": "能查出性格不稳定"}}, {"t": "12:34", "rel": 21.27, "en": "You unstable?", "c": {"A": "你心理不稳定？", "B": "你不稳定？", "C": "那你就是不稳定因素？", "D": "你不稳定？", "E": "你不稳定吗"}}, {"t": "12:37", "rel": 23.94, "en": "Now you know you're not supposed to be in here.", "c": {"A": "你知道你不该进来的", "B": "你知道你不该进来的。", "C": "你明知道不该进来的。", "D": "你知道你不该待在这里的", "E": "你很清楚自己不该在这的"}}, {"t": "12:39", "rel": 25.69, "en": "I found antler velvet in two of the wounds.", "c": {"A": "我在两处伤口里发现了鹿茸绒毛", "B": "我在两处伤口里发现了鹿茸绒毛。", "C": "两处伤口里发现了鹿茸残留。", "D": "我在两处伤口发现了鹿茸绒", "E": ""}}, {"t": "12:39", "rel": 25.69, "en": "Like she was gored.", "c": {"A": "像是被鹿角顶伤的", "B": "好像被角刺伤的。", "C": "像是被鹿角顶穿过。", "D": "像是被顶伤的", "E": "两处伤口里发现了鹿茸像是被鹿角刺伤的"}}, {"t": "12:42", "rel": 28.74, "en": "I was looking for velvet in the other wounds, but I was interrupted.", "c": {"A": "我正在别的伤口找绒毛 却被打断了", "B": "我正在其他伤口里找绒毛，但被打断了。", "C": "我正要检查其他伤口有没有鹿茸残留，就被打断了。", "D": "我正查其他伤口有没有绒毛，结果被打断了", "E": "我还在看其它伤口里有没有鹿茸 却被打断了"}}, {"t": "12:44", "rel": 31.24, "en": "Hold on, excuse me.", "c": {"A": "等等 借过", "B": "等等，借过一下。", "C": "等等，打扰一下。", "D": "等等，借过", "E": "等一下"}}, {"t": "12:46", "rel": 32.32, "en": "Look, deer and elk pin their prey, okay?", "c": {"A": "听着 鹿和麋鹿会压制猎物", "B": "听着，鹿会把猎物压住，懂吗？", "C": "听着，鹿和麋鹿会用角顶住猎物，明白吗？", "D": "你看，鹿和马鹿会压制猎物", "E": "鹿和麋会用角去撞捕食者"}}, {"t": "12:48", "rel": 34.49, "en": "They put all their weight into their antlers, try and suffocate a victim.", "c": {"A": "用全身重量压在鹿角上 想让猎物窒息", "B": "用全身重量压在鹿角上，把猎物闷死。", "C": "它们把全身重量压在鹿角上，把猎物活活窒息而死。", "D": "用全身重量压在鹿角上，把猎物憋死", "E": "它们会将重量全放在鹿角上"}}, {"t": "12:50", "rel": 37.04, "en": "That's how they would kill, like, a fox or a coyote.", "c": {"A": "它们就这样杀死狐狸或郊狼", "B": "它们就是这样杀死狐狸或土狼的。", "C": "它们就是这样杀死狐狸或郊狼的。", "D": "它们就是这样杀狐狸或野狗的", "E": "它们就是这样杀死狐狸或是土狼的 伊莉斯 ·尼克尔斯是被勒窒息而死的"}}]}, {"id": "B02", "show": "Hannibal", "episode": "S01E01", "genre": "Horror", "span": "00:33:12 – 00:33:49", "dur": 40.7, "clip": "clips/B02.mp4", "vnote": "", "rows": [{"t": "33:12", "rel": 1.5, "en": "I don't think the Shrike killed that girl in the field.", "c": {"A": "田野里那个女孩，不是伯劳干的。", "B": "我觉得田里那女孩不是伯劳杀的", "C": "我不认为伯劳鸟是在田间杀的那女孩", "D": "田里那女孩不是伯劳杀的", "E": "我不认为百伯劳杀了田野里那个女孩。"}}, {"t": "33:18", "rel": 7.42, "en": "The devil is in the details.", "c": {"A": "魔鬼藏在细节里。", "B": "细节里藏着魔鬼", "C": "问题隐藏于细节中", "D": "关键全在细节里", "E": "细节里藏着魔鬼。"}}, {"t": "33:20", "rel": 9.59, "en": "What didn't your copycat do to the girl in the field?", "c": {"A": "你的模仿犯对那田野里的女孩，少做了什么？", "B": "那个模仿者没对那女孩做什么？", "C": "", "D": "模仿犯对那女孩没做什么？", "E": "你说的模仿犯，对那女孩做了什么？"}}, {"t": "33:20", "rel": 9.59, "en": "What gave it away?", "c": {"A": "是什么露出了马脚？", "B": "是什么露了馅？", "C": "那个模仿犯忘记了什么", "D": "什么露了馅？", "E": "什么露出了破绽？"}}, {"t": "33:23", "rel": 12.64, "en": "Everything.", "c": {"A": "处处都是破绽。", "B": "所有细节", "C": "-每一个细节", "D": "全都是破绽", "E": "所有细节。"}}, {"t": "33:26", "rel": 15.51, "en": "It's like he had to show me a negative so that I could see the positive, it...", "c": {"A": "就像他得先让我看底片，我才能看清正片……", "B": "他好像要给我看反面 好让我看清正面", "C": "就像是他不得不展现出负面 我才能看到正面", "D": "他像是特意给我看反面 好让我看清正面", "E": "就像他故意给我看底片，让我看清正片……"}}, {"t": "33:32", "rel": 21.48, "en": "That crime scene was practically gift-wrapped.", "c": {"A": "那个案发现场，简直是专程送来的大礼包。", "B": "那个犯罪现场简直是精心包装过的", "C": "那个犯罪现场简直就是被精美包装过的", "D": "那现场简直像包好的礼物", "E": "那个犯罪现场简直像是专门包装好送给我的。"}}, {"t": "33:35", "rel": 25.23, "en": "The mathematics of human behavior.", "c": {"A": "人类行为，自有其规律。", "B": "人类行为的数学规律", "C": "人类行为的数学", "D": "人类行为的数学", "E": "人类行为有它的逻辑。"}}, {"t": "33:38", "rel": 27.53, "en": "All those ugly variables.", "c": {"A": "还有那些乱七八糟的变数。", "B": "那些丑陋的变量", "C": "那些丑陋的变量", "D": "全是些丑陋的变量", "E": "那些丑陋的变量。"}}, {"t": "33:40", "rel": 30.28, "en": "Some bad math with this Shrike fellow, huh?", "c": {"A": "这位伯劳，算盘打得不太准，是吧？", "B": "这个伯劳算错了账 是吧？", "C": "而伯劳鸟算错了题对吧", "D": "这伯劳的算式不太对劲吧？", "E": "这个百伯劳的算法出错了，是吧？"}}, {"t": "33:45", "rel": 34.99, "en": "Are you reconstructing his fantasies?", "c": {"A": "你是在还原他的幻想吗？", "B": "你在重构他的幻想？", "C": "你再现了他的幻想吗", "D": "你在还原他的幻想？", "E": "你在还原他的幻想？"}}, {"t": "33:48", "rel": 37.37, "en": "What kind of problems does he have?", "c": {"A": "他有什么问题？", "B": "他有什么样的问题？", "C": "他有什么样的问题", "D": "他到底有什么心理问题？", "E": "他有什么样的心理问题？"}}]}, {"id": "B03", "show": "Nikita", "episode": "S01E01", "genre": "Action", "span": "00:25:04 – 00:25:40", "dur": 39.2, "clip": "clips/B03.mp4", "vnote": "", "rows": [{"t": "25:04", "rel": 1.5, "en": "I mean, you should have seen her, she was a wreck.", "c": {"A": "你真该看看她那样子 简直一团糟", "B": "你真该看看她那样子快崩溃了", "C": "你真该看看她，一团糟", "D": "你真该看看她当时的样子，狼狈透了。", "E": "我是说，你该看看她当时那副狼狈样。"}}, {"t": "25:06", "rel": 3.33, "en": "I was able to turn the tables on her easy.", "c": {"A": "我轻轻松松就扭转了局面", "B": "使我能轻易扭转局势", "C": "我轻松就反制了她", "D": "我轻轻松松就反将了她一军。", "E": "我轻轻松松就扳回一城了。"}}, {"t": "25:10", "rel": 7.54, "en": "Yeah, was that before or after she duct-taped you to that springy rocking horse?", "c": {"A": "是在她用胶带把你绑上摇摇马之前 还是之后", "B": "把你绑在摇摆木马之前还是之后啊", "C": "是在她用胶带把你绑上摇摇马之前还是之后？", "D": "哦？是在她把你绑上弹簧木马之前还是之后？", "E": "哦？那是在她用胶带把你捆到弹簧摇马上之前，还是之后？"}}, {"t": "25:14", "rel": 11.65, "en": "The only reason why you're alive is because she wanted you that way.", "c": {"A": "你还活着 只是因为她想让你活着", "B": "是因为她愿意留你一条小命", "C": "你还活着，只因她想让你活着", "D": "你能活着，只是因为她想让你活。", "E": "你能活命，全凭她手下留情。"}}, {"t": "25:17", "rel": 14.43, "en": "We need to suspend all operations until we can contain this.", "c": {"A": "我们得暂停所有行动 直到控制住局面", "B": "我们必须暂缓所有行动", "C": "得暂停所有行动，直到控制住局面", "D": "在控制局面之前，我们要暂停所有行动。", "E": "在控制住局面之前，所有行动即刻暂停。"}}, {"t": "25:18", "rel": 16.01, "en": "As long as she's out there, she's a threat.", "c": {"A": "只要她还在外面 就是个威胁", "B": "只要她还活着就是一个威胁", "C": "只要她还逍遥在外，就是威胁", "D": "她在外面一天，就是一天的威胁。", "E": "只要她还在外面，就是个祸患。"}}, {"t": "25:21", "rel": 18.54, "en": "Threats are what we put down using our resources.", "c": {"A": "威胁就该用我们的资源去铲除", "B": "放着资源不用才是威胁", "C": "威胁就该动用资源除掉", "D": "消除威胁，正是我们动用资源的意义。", "E": "威胁，就是我们调动资源加以清除的东西。"}}, {"t": "25:25", "rel": 22.65, "en": "Nikita is a complication.", "c": {"A": "尼基塔是个麻烦", "B": "尼基塔比较麻烦而已", "C": "尼基塔是个麻烦", "D": "妮基塔是个麻烦。", "E": "尼基塔，不过是个麻烦罢了。"}}, {"t": "25:27", "rel": 24.73, "en": "You believe Birkhoff.", "c": {"A": "你信伯克霍夫的话", "B": "你居然相信伯克霍夫", "C": "你信伯克霍夫", "D": "你相信伯克霍夫的话。", "E": "你相信伯克霍夫的话？"}}, {"t": "25:28", "rel": 26.08, "en": "I'm telling the truth, Michael.", "c": {"A": "我说的是实话 迈克尔", "B": "迈克尔我说的是实话", "C": "我说的是实话，迈克尔", "D": "我说的是实话，迈克尔。", "E": "迈克尔，我说的是实话。"}}, {"t": "25:30", "rel": 27.64, "en": "And she didn't kill me because she likes me.", "c": {"A": "她没杀我 是因为她喜欢我", "B": "她没有杀我因为她喜欢我", "C": "她没杀我，是因为她喜欢我", "D": "她没杀我，是因为她喜欢我。", "E": "她没杀我，是因为她对我有好感。"}}, {"t": "25:33", "rel": 30.77, "en": "Think you're just jealous she didn't ask about you.", "c": {"A": "我觉得你是嫉妒她没问起你", "B": "她没问起你心里很酸吧", "C": "你只是嫉妒她没问起你吧", "D": "我看你只是嫉妒她没问起你吧。", "E": "我看你不过是吃醋她没来找你罢了。"}}, {"t": "25:37", "rel": 34.82, "en": "Where are you going?", "c": {"A": "你要去哪", "B": "你去哪里", "C": "你要去哪？", "D": "你去哪？", "E": "你要去哪儿？"}}, {"t": "25:38", "rel": 35.72, "en": "Joint intelligence fundraiser tonight.", "c": {"A": "今晚有情报界联合募捐会", "B": "今晚我要去参加联合情报筹款会", "C": "今晚有联合情报募捐会", "D": "今晚有联合情报募款晚宴。", "E": "今晚情报界有联合筹款晚宴。"}}]}, {"id": "B04", "show": "Nikita", "episode": "S01E01", "genre": "Action", "span": "00:38:00 – 00:38:44", "dur": 47.1, "clip": "clips/B04.mp4", "vnote": "", "rows": [{"t": "38:00", "rel": 1.5, "en": "What the hell are you doing back here?", "c": {"A": "你他妈跑回来干什么？", "B": "你他妈跑回来干什么？", "C": "你回来干什么？", "D": "你现在又跑回来干什么", "E": "你回来干什么？"}}, {"t": "38:02", "rel": 3.4, "en": "Someone has to stop Percy.", "c": {"A": "总得有人去阻止珀西。", "B": "得有人去阻止珀西。", "C": "总得有人阻止珀西", "D": "必须有人阻止珀西", "E": "得有人阻止珀西。"}}, {"t": "38:04", "rel": 5.99, "en": "If Percy goes down, he has no problem taking everybody down with him.", "c": {"A": "珀西要倒台，会把所有人一起拉下水。", "B": "珀西一旦垮台，会把所有人一起拖下水。", "C": "珀西倒了 会毫不犹豫拉大家一起垫背", "D": "他一定会拉上所有人陪葬", "E": "珀西一旦完蛋，会毫不犹豫拉所有人陪葬。"}}, {"t": "38:06", "rel": 8.03, "en": "This country will not recover.", "c": {"A": "这个国家会万劫不复。", "B": "这个国家将万劫不复。", "C": "这个国家会一蹶不振", "D": "这个国家将万劫不复", "E": "这个国家会一蹶不振。"}}, {"t": "38:08", "rel": 9.75, "en": "Do you want that?", "c": {"A": "你想看到这一幕？", "B": "这就是你想要的结果？", "C": "你想要这样吗", "D": "你希望这样吗", "E": "你想那样吗？"}}, {"t": "38:10", "rel": 11.99, "en": "What are you talking about?", "c": {"A": "你在说什么？", "B": "你在说什么？", "C": "你在说什么", "D": "你在说什么呢", "E": "你在说什么？"}}, {"t": "38:11", "rel": 13.27, "en": "I'm talking about evidence of every job division has had,", "c": {"A": "我说的是部门所有任务的证据，", "B": "我说的是，Division执行的每一次任务都留有证据，", "C": "我说的是分部所有任务的证据", "D": "我说的是那些证据关于组织参与过的所有行动", "E": "组织干过的每一票都有证据"}}, {"t": "38:14", "rel": 16.27, "en": "Locked away in encrypted files,", "c": {"A": "全都锁在加密文件里，", "B": "全部锁进了加密文件，", "C": "都被加密锁在文件里", "D": "都以加密文件的形式存储", "E": "锁在加密文件里"}}, {"t": "38:16", "rel": 18.31, "en": "Hidden all over the world.", "c": {"A": "分散藏在世界各地。", "B": "分散藏匿于世界各地。", "C": "藏在世界各地", "D": "藏在世界各地", "E": "藏在世界各地。"}}, {"t": "38:19", "rel": 20.68, "en": "So he gets a free pass?", "c": {"A": "那他就能逍遥法外？", "B": "他就这么逍遥法外了？", "C": "所以他就能逍遥法外", "D": "所以说他握有免死金牌吗", "E": "所以他就能逍遥法外？"}}, {"t": "38:20", "rel": 22.21, "en": "Keep training slaves to kill for him?", "c": {"A": "继续培养杀手为他卖命？", "B": "继续为他训练杀人机器？", "C": "继续训练奴隶替他杀人？", "D": "长期训练奴隶来为他执行杀戮任务", "E": "继续训练奴隶为他杀人？"}}, {"t": "38:22", "rel": 23.94, "en": "Spare me, Nikita.", "c": {"A": "省省吧，尼基塔。", "B": "少说废话，尼基塔。", "C": "别跟我来这套 尼基塔", "D": "省省吧尼基塔", "E": "少来了，尼基塔。"}}, {"t": "38:24", "rel": 25.93, "en": "I know you're in this for revenge.", "c": {"A": "我知道你不过是为了报仇。", "B": "我知道你不过是在公报私仇。", "C": "我知道你只是想报仇", "D": "我知道你只是为了复仇", "E": "我知道你就是为了报仇。"}}, {"t": "38:27", "rel": 28.58, "en": "You blame me?", "c": {"A": "你怪我？", "B": "你怪我？", "C": "你怪我吗", "D": "你是在怪我吗", "E": "你怪我吗？"}}, {"t": "38:29", "rel": 30.5, "en": "You know firsthand what it feels like.", "c": {"A": "你亲身体会过那种滋味。", "B": "你自己不也深有体会。", "C": "你亲身体会过那种感觉", "D": "你应该可以切身体会这种感受", "E": "那滋味你最清楚。"}}, {"t": "38:31", "rel": 32.36, "en": "Have the thing you love most in life taken away from you.", "c": {"A": "最爱的东西被人夺走。", "B": "你最在乎的人被人夺走，是什么滋味。", "C": "最爱的人被人夺走", "D": "突然之间失去了生活中最宝贵的东西", "E": "生命中最爱的东西被夺走。"}}, {"t": "38:35", "rel": 36.58, "en": "It wasn't your life.", "c": {"A": "那不是你的真实生活。", "B": "那不是你的人生。", "C": "那不是你的人生", "D": "", "E": "那不是你真正的生活。"}}, {"t": "38:35", "rel": 36.58, "en": "It was your cover.", "c": {"A": "那只是你的掩护身份。", "B": "那只是你的掩护身份。", "C": "只是你的卧底身份", "D": "那不是你的生活只是假身份", "E": "只是你的伪装身份。"}}, {"t": "38:39", "rel": 40.4, "en": "I warned you not to get emotionally attached.", "c": {"A": "我早就警告过你不要动感情。", "B": "我警告过你，不要动感情。", "C": "我警告过你别投入感情", "D": "我警告过你不要动真情", "E": "我警告过你别动感情。"}}, {"t": "38:42", "rel": 44.07, "en": "You mean the way you did...", "c": {"A": "就像你当年那样……", "B": "就像你自己……", "C": "你是说 就像你当年...", "D": "就像你对我...", "E": "你是说像你那样……"}}]}, {"id": "B05", "show": "Cobra Kai", "episode": "S03E01", "genre": "Action", "span": "00:24:40 – 00:25:23", "dur": 46.1, "clip": "clips/B05.mp4", "vnote": "", "rows": [{"t": "24:40", "rel": 1.5, "en": "Where's Johnny?", "c": {"A": "约翰尼在哪儿?", "B": "强尼在哪？", "C": "Johnny在哪？", "D": "约翰尼在哪？", "E": "强尼在哪儿？"}}, {"t": "24:41", "rel": 3.21, "en": "He's not here right now.", "c": {"A": "他现在不在这里", "B": "他现在不在。", "C": "他现在不在。", "D": "他现在不在。", "E": "他现在不在这儿"}}, {"t": "24:44", "rel": 5.88, "en": "But he'll be back.", "c": {"A": "他会回来的", "B": "但他会回来。", "C": "但他会回来的。", "D": "但他迟早会回来的。", "E": "但他会回来的"}}, {"t": "24:47", "rel": 9.38, "en": "It's a shame what happened at the school.", "c": {"A": "学校发生的事情真是让人惋惜", "B": "学校那事真是遗憾。", "C": "学校那件事真可惜。", "D": "学校那件事……唉，真是可惜。", "E": "学校那件事真可惜"}}, {"t": "24:52", "rel": 14.06, "en": "Such a tragedy.", "c": {"A": "真是场悲剧啊", "B": "真是场悲剧。", "C": "真是场悲剧。", "D": "真是一场'悲剧'啊。", "E": "真是悲剧"}}, {"t": "24:55", "rel": 16.47, "en": "But I don't really blame Robby.", "c": {"A": "不过也不能赖罗比", "B": "但我不怪罗比。", "C": "不过我不怎么怪Robby。", "D": "不过我倒不怪罗比。", "E": "但我不怎么怪罗比"}}, {"t": "25:02", "rel": 23.65, "en": "' Cause you know what they say... there's no such thing as a bad student.", "c": {"A": "没有坏学生这种事", "B": "俗话说得好，没有教不好的学生。", "C": "常言道嘛……没有教不好的学生。", "D": "常言道……没有教不好的学生，只有不会教的老师。", "E": "俗话说嘛…没有教不好的学生"}}, {"t": "25:08", "rel": 29.82, "en": "It must really hurt to see the Miyagi name dragged through the mud.", "c": {"A": "看到宫城道的名誉一败涂地 感觉肯定很受伤吧", "B": "眼看宫城的名声被糟蹋，一定很痛吧。", "C": "看着宫城的名字被人踩在脚下，一定很难受吧。", "D": "眼睁睁看着宫城的名号被踩进泥里，一定很痛吧。", "E": "宫城的名声被拖下水一定很难受吧"}}, {"t": "25:13", "rel": 35.03, "en": "Wish I could see the look on the little bastard's face.", "c": {"A": "真希望我当时 能看到那个小混蛋的表情", "B": "真想看看那小混蛋的表情。", "C": "真想看看那臭小子的表情。", "D": "真想瞧瞧那小杂种是什么嘴脸。", "E": "真想看看那小子当时的表情"}}, {"t": "25:20", "rel": 41.96, "en": "That little bastard kicked your ass.", "c": {"A": "那个小混蛋把你打倒了", "B": "那小混蛋把你揍惨了。", "C": "那臭小子可是把你揍趴下了。", "D": "那小杂种把你揍趴下了。", "E": "那小子把你打得屁滚尿流"}}]}, {"id": "B06", "show": "Cobra Kai", "episode": "S03E01", "genre": "Action", "span": "00:01:16 – 00:01:51", "dur": 38.5, "clip": "clips/B06.mp4", "vnote": "此段是新闻蒙太奇（解说、配乐、音效叠在一起），自动对时置信度低，视频与字幕可能有几秒误差，只作场景参考。画面里的英文新闻角标属于剧情内的图形，与评测无关。", "rows": [{"t": "01:16", "rel": 1.5, "en": "It was two weeks ago today at West Valley High, where what can only be described as an all-out karate riot caught students and faculty off-guard, sending shock waves through the Valley.", "c": {"A": "让全校师生措手不及 暴力事件甚至波及到整个山谷", "B": "两周前，西谷高中爆发了一场空前的空手道暴乱，令师生措手不及，震惊整个山谷。", "C": "两周前的今天，西谷高中\n爆发了一场空手道暴动", "D": "两周前，西谷高中爆发了一场空手道群殴，令师生猝不及防，震惊整个山谷地区。", "E": "两周前的今天，西谷高中\n爆发了一场空手道大乱斗"}}, {"t": "01:20", "rel": 5.92, "en": "We got enough to worry about.", "c": {"A": "如今我们已经有不少要担心的事了", "B": "我们已经够烦的了。", "C": "我们烦心事已经够多了", "D": "我们已经够焦头烂额了。", "E": "我们烦心事够多了"}}, {"t": "01:22", "rel": 8.09, "en": "Now we got karate gangs in schools?", "c": {"A": "现在学校里又出现了空手道党?", "B": "现在学校里还有空手道帮派？", "C": "现在学校里还有空手道帮派？", "D": "学校里现在还冒出练空手道的帮派？", "E": "现在学校还有空手道帮派？"}}, {"t": "01:25", "rel": 10.59, "en": "There was a karate attack at the mall a couple months back.", "c": {"A": "我听说两个月前 商场里就发生了一次打架事件", "B": "几个月前商场也发生过空手道袭击事件。", "C": "几个月前商场里就发生过\n空手道袭击事件", "D": "几个月前，商场里也发生过空手道袭击事件。", "E": "几个月前商场也发生过空手道袭击"}}, {"t": "01:28", "rel": 14.01, "en": "I thought karate died out in the' 80s.", "c": {"A": "我以为空手道在八十年代就不流行了", "B": "我还以为空手道80年代就没落了。", "C": "我以为空手道八十年代\n就绝迹了", "D": "我还以为空手道早在八十年代就已经过气了。", "E": "我还以为空手道八十年代就没落了"}}, {"t": "01:30", "rel": 16.1, "en": "Earlier today, students organized a peaceful gathering of prayer and song.", "c": {"A": "今天早些时候一些学生们组织了 一场和平集会一起祈祷、唱歌", "B": "今天早些时候，学生们自发组织了祈祷和歌唱集会。", "C": "今天早些时候，学生们\n组织了祈祷歌唱和平集会", "D": "今天早些时候，学生们自发组织了一场祈祷与歌唱的和平集会。", "E": "今天早些时候，学生们\n举行了祈祷与歌唱的和平集会"}}, {"t": "01:35", "rel": 20.56, "en": "♪... right to love ♪", "c": {"A": "相爱的权利", "B": "♪ ...有权去爱 ♪", "C": "♪ ……去爱的权利 ♪", "D": "♪……爱的权利 ♪", "E": "♪ 有权去爱 ♪"}}, {"t": "01:38", "rel": 23.65, "en": "♪ We don't have to punch ♪", "c": {"A": "我们不必挥拳相向、相互憎恶", "B": "♪ 我们不必动拳头 ♪", "C": "♪ 我们不必挥拳相向 ♪", "D": "♪拳头收一收 ♪", "E": "♪ 我们无需动拳 ♪"}}, {"t": "01:40", "rel": 25.86, "en": "♪ Hey, let's go get some brunch And be friends ♪", "c": {"A": "我们一起去吃早午餐成为朋友吧 今晚西谷高中的管理层 将举办一场社区会议", "B": "♪ 嘿，一起去吃早午餐 做朋友吧 ♪", "C": "♪ 一起去吃个早午餐 做朋友吧 ♪", "D": "♪嘿，一起去搓一顿，交个朋友 ♪", "E": "♪ 一起吃个早午餐 做朋友吧 ♪"}}, {"t": "01:49", "rel": 34.28, "en": "Tonight, West Valley High is holding a community meeting to answer questions and help settle fears.", "c": {"A": "解答众人的疑问平定大家的恐惧", "B": "今晚，西谷高中将召开社区会议，解答疑问、安抚民心。", "C": "今晚西谷高中将召开社区会议\n解答疑问平息恐慌", "D": "今晚，西谷高中将举行社区会议，答疑解惑、安抚民心。", "E": "今晚西谷高中将召开社区大会\n答疑解惑 安抚人心"}}]}, {"id": "B09", "show": "Emily in Paris", "episode": "S01E01", "genre": "Comedy", "span": "00:11:38 – 00:12:17", "dur": 41.6, "clip": "clips/B09.mp4", "vnote": "", "rows": [{"t": "11:38", "rel": 1.5, "en": "For those of you who haven't met me, I'm Emily Cooper, and I'm so excited to be here in Paris.", "c": {"A": "对于还不认识我的人，我是艾米莉·库珀，很高兴来到巴黎。", "B": "还没见过我的人 我叫艾米莉·库珀\n很高兴能来巴黎", "C": "还没见过我的，我叫艾米丽·库珀，能来巴黎我激动极了！", "D": "还没见过我的各位，我是艾米丽·库珀 很高兴来到巴黎", "E": "我想对还没见过我的人说 我叫艾米丽库珀 我很高兴能来到巴黎"}}, {"t": "11:44", "rel": 6.75, "en": "I'm looking forward to getting to know each and every one of you and, likewise, having you get to know me.", "c": {"A": "我期待认识你们每一个人，也希望你们能了解我。", "B": "我很期待认识大家\n也希望大家认识我", "C": "我很期待与大家相互了解，也希望你们能多认识我！", "D": "我很期待认识大家每一位 也希望你们认识我", "E": "我很期待认识你们每一个人 也希望你们认识我"}}, {"t": "11:47", "rel": 10.3, "en": "Your name, monsieur?", "c": {"A": "请问您叫什么名字？", "B": "先生 你叫什么？", "C": "请问您怎么称呼？", "D": "先生，您叫什么？", "E": "先生怎么称呼？"}}, {"t": "11:48", "rel": 11.3, "en": "My name is Luc.", "c": {"A": "我叫吕克。", "B": "我叫吕克", "C": "我叫吕克。", "D": "我叫吕克", "E": "我叫卢克"}}, {"t": "11:50", "rel": 12.68, "en": "Yes, Luc?", "c": {"A": "好的，吕克？", "B": "说吧 吕克", "C": "好的，吕克？", "D": "请说，吕克？", "E": "你好卢克"}}, {"t": "11:51", "rel": 14.43, "en": "Why are you shouting?", "c": {"A": "你为什么那么大声？", "B": "你为什么大喊大叫？", "C": "你嚷嚷什么呢？", "D": "你干吗大喊大叫？", "E": "你为什么大声嚷嚷？"}}, {"t": "11:54", "rel": 16.93, "en": "Sorry.", "c": {"A": "抱歉。", "B": "抱歉", "C": "抱歉。", "D": "抱歉", "E": "不好意思"}}, {"t": "12:00", "rel": 23.31, "en": "Your company works with some of the biggest brands in the luxury sector, from Chanel to YSL.", "c": {"A": "贵公司与奢侈品界众多大牌合作，从香奈儿到圣罗兰。", "B": "你们公司合作的都是奢侈品大牌\n从香奈儿到圣罗兰", "C": "贵公司与奢侈品行业的顶级品牌合作，从香奈儿到圣罗兰。", "D": "贵公司合作的都是奢侈品大牌 从香奈儿到圣罗兰", "E": "你们公司 跟不少大名鼎鼎的奢侈品牌合作 包括香奈儿和圣罗兰"}}, {"t": "12:07", "rel": 30.28, "en": "And that makes Savoir, your company, or, if I may be so bold, our company, a brand in itself.", "c": {"A": "这让Savoir——你们的公司，或者恕我冒昧，我们的公司——本身也成了一个品牌。", "B": "所以你们公司Savoir\n或者说 如果我大胆一点 咱们公司\n本身就是一个品牌", "C": "Savoir——贵公司，或者，冒昧地说，我们公司——本身就是一块金字招牌。", "D": "这让Savoir这家公司 大胆说是我们公司 本身就是个品牌", "E": "请允许我大胆地说一句 因此我们的公司也自成一个品牌"}}, {"t": "12:10", "rel": 33.32, "en": "But to build a brand, you must create meaningful social media engagement.", "c": {"A": "但要打造品牌，就必须做好社交媒体互动。", "B": "但打造品牌\n必须有实质性的社媒互动", "C": "但要打造品牌，就必须做好社交媒体互动。", "D": "但要打造品牌 就得做出有意义的社媒互动", "E": "但要建立品牌 你们必须有效利用社交媒体"}}, {"t": "12:13", "rel": 35.91, "en": "May I ask who's responsible for your social media here?", "c": {"A": "请问贵公司的社交媒体由谁负责？", "B": "我能问下这里谁负责社媒吗？", "C": "请问贵公司的社交媒体，是哪位在负责？", "D": "请问这里谁负责社交媒体？", "E": "我想知道 在座是谁负责社交媒体宣传？"}}, {"t": "12:16", "rel": 39.25, "en": "Patricia.", "c": {"A": "帕特里夏。", "B": "帕特里夏", "C": "帕特里夏。", "D": "帕特丽夏", "E": "帕特丽夏"}}]}, {"id": "B11", "show": "Emily in Paris", "episode": "S01E01", "genre": "Comedy", "span": "00:25:42 – 00:26:19", "dur": 39.4, "clip": "clips/B11.mp4", "vnote": "", "rows": [{"t": "25:42", "rel": 1.5, "en": "Oh... whoops.", "c": {"A": "哦…糟糕", "B": "哎呀", "C": "哦……哎呀。", "D": "哦…糟了", "E": "哦……哎呀。"}}, {"t": "25:45", "rel": 4.17, "en": "It's 7: 00 p.m. here.", "c": {"A": "这边晚上七点", "B": "这边是晚上 7点", "C": "这边现在是晚上七点。", "D": "这边现在晚上七点", "E": "我这边才晚上七点呢。"}}, {"t": "25:48", "rel": 7.51, "en": "Uh...", "c": {"A": "呃…", "B": "", "C": "呃……", "D": "呃…", "E": "这……"}}, {"t": "25:51", "rel": 9.92, "en": "What are you doin'?", "c": {"A": "你在干嘛？", "B": "你在干什么？", "C": "你在干嘛？", "D": "你在干什么", "E": "你在干嘛呢？"}}, {"t": "25:52", "rel": 11.72, "en": "Sleeping.", "c": {"A": "睡觉呢", "B": "睡觉", "C": "睡觉。", "D": "睡觉", "E": "睡觉呢。"}}, {"t": "25:54", "rel": 13.26, "en": "I miss you so much.", "c": {"A": "我好想你", "B": "我很想你", "C": "我好想你。", "D": "好想你", "E": "我好想你啊。"}}, {"t": "25:56", "rel": 14.93, "en": "And I miss you too.", "c": {"A": "我也想你", "B": "我也很想你", "C": "我也很想你。", "D": "我也想你", "E": "我也好想你。"}}, {"t": "25:58", "rel": 17.22, "en": "Hello?", "c": {"A": "喂？", "B": "", "C": "喂？", "D": "喂", "E": "喂？"}}, {"t": "25:58", "rel": 17.22, "en": "Doug?", "c": {"A": "道格？", "B": "道格？", "C": "道格？", "D": "道格？", "E": "道格？"}}, {"t": "26:01", "rel": 20.14, "en": "Oh!", "c": {"A": "哦！", "B": "", "C": "哦！", "D": "哦！", "E": "哦！"}}, {"t": "26:02", "rel": 21.19, "en": "Get naked with me.", "c": {"A": "跟我一起脱光吧", "B": "噢！ 你也脱光吧", "C": "跟我一起脱光。", "D": "跟我一起脱光", "E": "陪我一起脱光吧。"}}, {"t": "26:04", "rel": 23.1, "en": "Are we having cybersex?", "c": {"A": "我们要网爱吗？", "B": "要玩 \"网交 \"是吗？", "C": "我们要视频做那事？", "D": "我们要玩网络性爱？", "E": "我们这算网络性爱吗？"}}, {"t": "26:06", "rel": 25.07, "en": "Well... if you insist.", "c": {"A": "好吧…你非要的话", "B": "你说是就是吧", "C": "嘛……你都这么说了。", "D": "好吧…你都这么说了", "E": "唔……既然你都开口了嘛。"}}, {"t": "26:11", "rel": 29.99, "en": "Hold on.", "c": {"A": "等一下", "B": "等一下！", "C": "等一下。", "D": "等一下", "E": "等一下嘛。"}}, {"t": "26:15", "rel": 34.32, "en": "You better not be recording this.", "c": {"A": "你最好没在录这个", "B": "最好不要录下来", "C": "你最好别录下来。", "D": "你最好没在录像", "E": "你可别偷偷录下来哦。"}}, {"t": "26:17", "rel": 36.62, "en": "No.", "c": {"A": "没有", "B": "", "C": "不会。", "D": "没有", "E": "才不呢。"}}, {"t": "26:17", "rel": 36.62, "en": "Never.", "c": {"A": "绝对没有", "B": "不会才不会", "C": "绝对不会。", "D": "绝对没有", "E": "绝对不会。"}}]}, {"id": "B12", "show": "The Legend of Vox Machina", "episode": "S01E01", "genre": "Animation", "span": "00:24:35 – 00:25:13", "dur": 41.9, "clip": "clips/B12.mp4", "vnote": "", "rows": [{"t": "24:35", "rel": 1.5, "en": "Uh, I mean I'm not gonna lie, I'm terrified out of my mind.", "c": {"A": "呃，说实话，我怕得要死。", "B": "说实话，我现在吓得魂飞魄散。", "C": "说实话 我怕得要死", "D": "实话实说我心里很害怕但我要参加", "E": "说实话，我现在怕得要死。"}}, {"t": "24:38", "rel": 4.92, "en": "But I'm in.", "c": {"A": "但我加入。", "B": "可我还是要上。", "C": "但我加入", "D": "我讨厌失败", "E": "但我加入。"}}, {"t": "24:42", "rel": 8.88, "en": "I don't like losin'... but now I'm feelin' things, on the inside.", "c": {"A": "我不喜欢输…但心里有些感觉。", "B": "我不喜欢输……但我现在心里头，有什么东西在翻腾。", "C": "我不喜欢输 可现在心里有种感觉", "D": "但是我现在心里有个东西堵着", "E": "我不喜欢输……但我心里有些感觉，"}}, {"t": "24:46", "rel": 12.64, "en": "They don't feel right.", "c": {"A": "这些感觉不对劲。", "B": "这感觉……不对劲。", "C": "很不对劲", "D": "就是感觉难受", "E": "感觉不太对劲。"}}, {"t": "24:49", "rel": 15.43, "en": "So yeah, I'm with ya.", "c": {"A": "所以…我跟你们一起。", "B": "嗯，我跟你们一块儿上。", "C": "所以我跟你们一起干", "D": "所以我跟你们一起去", "E": "所以，我跟你们干。"}}, {"t": "24:53", "rel": 19.81, "en": "That was... actually well stated, Grog.", "c": {"A": "格罗格，你说得…挺好的。", "B": "这话……说得还挺到位的，格罗格。", "C": "格罗格 这话说得还挺到位", "D": "格劳格你这话说得真好", "E": "说得……还挺好的，葛洛格。"}}, {"t": "24:55", "rel": 21.94, "en": "- What was?", "c": {"A": "-什么说得好？", "B": "哪话？", "C": "-哪句话？", "D": "", "E": "- 哪里？"}}, {"t": "24:55", "rel": 21.94, "en": "- Uh, never mind.", "c": {"A": "-呃，没事。", "B": "呃……算了。", "C": "-呃 算了", "D": "你说啥？", "E": "- 算了，没事。"}}, {"t": "24:57", "rel": 23.94, "en": "Count me in as well.", "c": {"A": "算我一个。", "B": "我也算一个。", "C": "算我一个", "D": "就当我刚才什么都没说吧我也要参加", "E": "算我一个。"}}, {"t": "25:01", "rel": 27.44, "en": "You guys... we're doing this.", "c": {"A": "伙计们…我们要干这件事了。", "B": "伙计们……就这么干了。", "C": "各位 我们真要干了", "D": "伙计们咱们去干这件事情", "E": "大家……我们就这么干了。"}}, {"t": "25:02", "rel": 29.07, "en": "You all realize we're going to die a truly horrible death.", "c": {"A": "你们都知道我们会死得很惨吧。", "B": "你们都清楚吧，咱们会死得无比凄惨。", "C": "你们都知道我们会死得很惨吧", "D": "你们都知道我们会死得很惨", "E": "你们知道吧，我们会死得很惨。"}}, {"t": "25:05", "rel": 32.28, "en": "Perhaps, sister.", "c": {"A": "也许吧，妹妹。", "B": "兴许吧，姐姐。", "C": "或许吧 妹妹", "D": "也许吧姐姐", "E": "也许吧，姐姐。"}}, {"t": "25:11", "rel": 37.41, "en": "But we'll die gloriously, and we'll kill a fucking dragon.", "c": {"A": "但我们会死得光荣，还能杀条龙。", "B": "但我们会死得轰轰烈烈，还他妈的要宰一条龙。", "C": "但我们会死得壮烈 还要宰了那条龙", "D": "而且我们一定会杀死一条恶龙", "E": "但我们会死得轰轰烈烈，还要宰了那条龙。"}}]}, {"id": "B13", "show": "The Legend of Vox Machina", "episode": "S01E01", "genre": "Animation", "span": "00:02:52 – 00:03:30", "dur": 41.5, "clip": "clips/B13.mp4", "vnote": "", "rows": [{"t": "02:52", "rel": 1.5, "en": "- Oi, tavern keep.", "c": {"A": "嘿，掌柜的。", "B": "喂，店家", "C": "再给机械之声上一轮酒", "D": "喂，掌柜的。", "E": "嘿，酒馆老板。"}}, {"t": "02:56", "rel": 5.55, "en": "Another round for Vox Machina, the greatest band of mercenaries in all the realm.", "c": {"A": "为神机小队再来一轮——全境无双的雇佣兵团！", "B": "再来一轮，敬全境最强佣兵团机械之声", "C": "所有结界里最棒的雇佣军！", "D": "给Vox Machina再来一轮，全境最强佣兵团。", "E": "再来一轮，敬这天下最强的雇佣兵团“机猎”。"}}, {"t": "02:59", "rel": 8.88, "en": "The greatest?", "c": {"A": "全境无双？", "B": "最强？", "C": "最棒的？", "D": "最强？", "E": "最强？"}}, {"t": "03:02", "rel": 11.47, "en": "I heard you couldn't even rescue a cow from a burning barn.", "c": {"A": "听说你们连火场里的一头牛都救不出来？", "B": "听说你们连着火棚里的牛都救不出来", "C": "我听说你都没能耐把一头牛从着火的谷仓里救出来", "D": "我听说你们连牛棚失火都救不出头牛。", "E": "听说你们连火场里的牛都救不出来。"}}, {"t": "03:06", "rel": 15.51, "en": "\" Vox Machina.\" What a fucking joke.", "c": {"A": "神机小队」？他妈的真是个笑话。", "B": "什么机械之声，真他妈是个笑话", "C": "机械之声真是他妈的笑话！", "D": "\"Vox Machina\"，他妈的笑话。", "E": "“机猎”，真是个笑话。"}}, {"t": "03:11", "rel": 21.23, "en": "Let's keep things civil, friend.", "c": {"A": "好说好说，「朋友」。", "B": "都文明点，朋友", "C": "做个文明人吧朋友", "D": "朋友，大家文明点。", "E": "朋友，咱好好说话。"}}, {"t": "03:15", "rel": 24.61, "en": "We're not looking for trouble.", "c": {"A": "我们不想惹麻烦。", "B": "我们不想惹事", "C": "我们来这儿不是找麻烦的", "D": "我们不想惹麻烦。", "E": "我们不想惹事。"}}, {"t": "03:17", "rel": 26.4, "en": "Oh, I'll bet you ain't.", "c": {"A": "哦，我看你们也没那胆子。", "B": "哦，我看你们是不敢吧", "C": "我就知道你们不敢 大家都知道你们是一帮可悲的软蛋", "D": "哦，我猜也是。", "E": "我信才怪。"}}, {"t": "03:21", "rel": 31.11, "en": "Everyone knows you're a bunch of pathetic losers who can't get a fucking job.", "c": {"A": "谁都知道你们就是一群他妈找不到营生的废柴。", "B": "谁都知道你们是接不到活的废物", "C": "根本就他妈的没有生意", "D": "谁都知道你们是群废物，连活都接不到。", "E": "谁都知道你们是找不到活干的废物。"}}, {"t": "03:24", "rel": 33.74, "en": "Look at your scrawny ass.", "c": {"A": "就你这副瘦猴德性。", "B": "瞧你这瘦得跟猴似的", "C": "看看你们几个弱鸡", "D": "瞧你那副瘦皮猴样。", "E": "瞧瞧你这瘦巴巴的样儿。"}}, {"t": "03:26", "rel": 35.49, "en": "Too weak to tickle your own pickle.", "c": {"A": "就这点力气，自己那活儿都整不了。", "B": "怕是连自己的鸡巴都撸不动", "C": "力气小得连自己的管都撸不动", "D": "弱得连自己都伺候不了。", "E": "连自己那玩意儿都撸不动。"}}, {"t": "03:29", "rel": 38.66, "en": "Are you offering to help?", "c": {"A": "你是要来帮把手？", "B": "你是想帮我撸吗？", "C": "那你能帮我撸吗？ 去你的！", "D": "你是要自告奋勇？", "E": "你是想帮我一把？"}}]}, {"id": "B21", "show": "Star Wars: The Clone Wars", "episode": "S01E01", "genre": "Animation", "span": "00:06:06 – 00:06:52", "dur": 49.2, "clip": "clips/B21.mp4", "vnote": "", "rows": [{"t": "06:06", "rel": 1.5, "en": "I'm deploying my forces, master.", "c": {"A": "我正在部署兵力，主人。", "B": "我正在部署兵力，主人。", "C": "师父，调兵遣将，吾已着手矣。", "D": "我正在部署部队，大师。", "E": "我正在部署我的部队,师父"}}, {"t": "06:12", "rel": 6.8, "en": "Yoda has made a grave mistake, straying this far from Coruscant.", "c": {"A": "尤达犯了大错，竟离科洛桑如此之远。", "B": "尤达犯了大错，远离科洛桑至此。", "C": "尤达擅离科洛桑，此乃他铸下的大错。", "D": "尤达犯了大错，离科洛桑这么远。", "E": "尤达犯下了一个致命的错误,他离科洛桑太远了"}}, {"t": "06:14", "rel": 9.44, "en": "I will see the Jedi gets his\" fair fight\".", "c": {"A": "我会让那个绝地得到他的\"公平决斗\"。", "B": "我会让绝地得到\"公平之战\"。", "C": "本座自会让那绝地武士得到他的「公平决斗」。", "D": "我会让那绝地打一场“公平之战”。", "E": "我会确保绝地得到 \"公平的较量 \""}}, {"t": "06:19", "rel": 14.09, "en": "Carry only what you need.", "c": {"A": "只带必需之物。", "B": "只带必需之物。", "C": "只带必需之物。", "D": "只带必需之物。", "E": "只带你们需要的东西"}}, {"t": "06:21", "rel": 15.81, "en": "Too much weight slow you down, it will.", "c": {"A": "负重太多，只会拖慢你。", "B": "负重太多，会拖慢你们。", "C": "负重过多，必将拖累于你矣。", "D": "负重太多，速度会变慢。", "E": "负重太多会拖你们的后腿"}}, {"t": "06:24", "rel": 19.12, "en": "Destroy Ventress, your weapons will not.", "c": {"A": "你们的武器，杀不了文特雷斯。", "B": "光靠武器，杀不了文崔斯。", "C": "消灭文崔斯，你等武器无济于事矣。", "D": "你们的武器，无法消灭温特蕾丝。", "E": "你们的武器是无法消灭文崔斯的"}}, {"t": "06:27", "rel": 21.85, "en": "Come, Lieutenant.", "c": {"A": "走吧，中尉。", "B": "来吧，中尉。", "C": "随我来，中尉。", "D": "来吧，中尉。", "E": ""}}, {"t": "06:27", "rel": 21.85, "en": "Hurry, we must.", "c": {"A": "我们必须快点。", "B": "我们必须快点。", "C": "速行，吾等不可迟矣。", "D": "得快点。", "E": "来,来,中尉,我们得快点"}}, {"t": "06:30", "rel": 25.06, "en": "Sir, the rendezvous point is that way.", "c": {"A": "长官，集合点在那边。", "B": "长官，集合点在那边。", "C": "将军，集合点在那边。", "D": "长官，会合点是那个方向。", "E": "长官,会合点是在那边"}}, {"t": "06:33", "rel": 28.62, "en": "As is our enemy.", "c": {"A": "敌人也在那边。", "B": "敌人也在那边。", "C": "吾等之敌，亦在彼处。", "D": "敌人也在那边。", "E": "敌人也在那个方向"}}, {"t": "06:36", "rel": 30.78, "en": "To reach our goal, a straight path, we will not follow.", "c": {"A": "要达到目的，我们不能走直路。", "B": "抵达目标，不走直路。", "C": "为达目标，直路，吾等不可循矣。", "D": "要达成目标，直路，我们不能走。", "E": "要到达目的地,我们不能走直线"}}, {"t": "06:40", "rel": 35.12, "en": "Let's move it, boys.", "c": {"A": "动起来，弟兄们！", "B": "行动吧，兄弟们。", "C": "出发，弟兄们。", "D": "行动起来，弟兄们。", "E": "出发吧,小子们"}}, {"t": "06:43", "rel": 38.5, "en": "Find Master Yoda.", "c": {"A": "找到尤达大师。", "B": "去找尤达大师。", "C": "找到尤达大师。", "D": "找到尤达大师。", "E": "找到尤达大师"}}, {"t": "06:46", "rel": 41.25, "en": "Ahh, what does he look like?", "c": {"A": "呃，他长什么样？", "B": "呃，他长什么样？", "C": "呃……他长啥样来着？", "D": "他长什么样？", "E": "他长的什么样?"}}, {"t": "06:51", "rel": 46.18, "en": "He'll be the small shriveled green one, with the light saber.", "c": {"A": "他是个又矮又老的绿色小家伙，手持光剑。", "B": "又小又皱的绿家伙，带着光剑。", "C": "就那个矮小干瘪、拿光剑的绿老头。", "D": "矮小干瘪、绿皮肤，带光剑的那个。", "E": "他是个干瘪的小绿人,并且拿着一把光剑"}}]}, {"id": "B22", "show": "Nikita", "episode": "S01E01", "genre": "Action", "span": "00:34:05 – 00:34:57", "dur": 55.2, "clip": "clips/B22.mp4", "vnote": "", "rows": [{"t": "34:05", "rel": 1.5, "en": "Makes one of us.", "c": {"A": "那可只有你这么想了。", "B": "那我们俩算是一伙的", "C": "成为我们中的一员", "D": "那咱俩一样。", "E": "我们俩都一样。"}}, {"t": "34:08", "rel": 3.81, "en": "John, what did you want to tell me that I couldn't hear on the phone?", "c": {"A": "约翰，有什么话非得当面说？", "B": "约翰，什么事不能在电话里说", "C": "约翰有什么话不能直接在电话里讲吗", "D": "约翰，有什么不能在电话里说的？", "E": "约翰，什么事电话上不能说？"}}, {"t": "34:12", "rel": 8.68, "en": "The CIA has made my committee aware of some very high level espionage activities.", "c": {"A": "中情局已向本委员会通报了若干高级别间谍活动。", "B": "中情局向我的委员会汇报了一些高层间谍活动", "C": "某些一流的间谍活动", "D": "中情局向我委员会报告了一些高级间谍活动。", "E": "中情局向我的委员会通报了一些高层间谍活动。"}}, {"t": "34:16", "rel": 12.24, "en": "Kidnappings, assassinations.", "c": {"A": "绑架，暗杀。", "B": "绑架，暗杀", "C": "诸如绑架暗杀", "D": "绑架、暗杀。", "E": "绑架、暗杀。"}}, {"t": "34:18", "rel": 14.2, "en": "It's clearly the work of a skilled intelligence network.", "c": {"A": "这显然出自一个训练有素的情报网络之手。", "B": "显然是某个专业情报网干的", "C": "很明显是个训练有素的情报组织所为", "D": "显然出自一个训练有素的情报网络。", "E": "明显是老练情报网干的。"}}, {"t": "34:20", "rel": 16.59, "en": "But we can't attribute it to any one of our enemies.", "c": {"A": "但我们无法将其归咎于任何已知的敌方势力。", "B": "但查不出是哪个敌对势力", "C": "而这个组织既不属于我们的敌国", "D": "但我们无法将其归咎于任何一个敌国。", "E": "但查不出是哪个敌国所为。"}}, {"t": "34:24", "rel": 20.09, "en": "Or allies.", "c": {"A": "或者盟友。", "B": "也可能是盟友", "C": "也不属于盟国", "D": "盟友也不是。", "E": "或者盟友。"}}, {"t": "34:26", "rel": 22.23, "en": "You come across anything like that?", "c": {"A": "你可曾接触过此类事务？", "B": "你有听到什么风声吗", "C": "想起什么了吗", "D": "你有没有碰到过类似的情况？", "E": "你有碰上过这种事吗？"}}, {"t": "34:29", "rel": 25.22, "en": "Not that I'm aware of.", "c": {"A": "据我所知，没有。", "B": "目前还没有", "C": "一无所知", "D": "就我所知，没有。", "E": "据我所知没有。"}}, {"t": "34:32", "rel": 28.42, "en": "Hey, you work for us, remember that.", "c": {"A": "记清楚了，你是为我们效力的。", "B": "记住，你是为我们卖命的", "C": "别忘了你是在给我们打工", "D": "喂，你是为我们工作的，别忘了。", "E": "别忘了，你替我们干活。"}}, {"t": "34:35", "rel": 31.08, "en": "I work for whoever happens to be sitting in your chair.", "c": {"A": "我为坐在那把椅子上的人效力。", "B": "我是为坐在你位子上的人卖命", "C": "我给坐在你这个位置上的人打工", "D": "我效忠的是坐在那把椅子上的人。", "E": "谁坐你这位子我就替谁干活。"}}, {"t": "34:38", "rel": 34.54, "en": "That person tends to come and go.", "c": {"A": "那把椅子，坐的人来来去去。", "B": "而这个人总是换来换去", "C": "这个位置换过许多人了", "D": "那个人可是走马灯换的。", "E": "这位子上的人换得可勤。"}}, {"t": "34:45", "rel": 41.04, "en": "Black arrow was blown.", "c": {"A": "黑箭行动败露了。", "B": "黑箭行动暴露了", "C": "黑箭行动失败", "D": "黑箭行动暴露了。", "E": "黑箭行动暴露了。"}}, {"t": "34:46", "rel": 42.55, "en": "Nikita sabotaged the OP.", "c": {"A": "尼基塔蓄意破坏了这次行动。", "B": "妮基塔搞砸了这次行动", "C": "尼基塔破坏了行动", "D": "尼基塔破坏了行动。", "E": "尼基塔破坏了行动。"}}, {"t": "34:48", "rel": 44.22, "en": "Then what the hell are you doing here?", "c": {"A": "那你他妈还待在这儿干什么？", "B": "那你们还在这儿干什么", "C": "", "D": "那你他妈的还在这待着干什么？", "E": "那你还在这儿磨蹭什么？"}}, {"t": "34:48", "rel": 44.22, "en": "Find her!", "c": {"A": "找到她！", "B": "去找她！", "C": "那你还来这干什么找到她", "D": "找到她！", "E": "把她找出来！"}}, {"t": "34:50", "rel": 46.3, "en": "We need to pull in assets from the field.", "c": {"A": "把所有外勤资产全部召回。", "B": "得调动外勤人员了", "C": "我们需要抽调更多的人手", "D": "我们得把外勤人员全部召回。", "E": "得从外勤调回资源。"}}, {"t": "34:51", "rel": 47.65, "en": "We trained Nikita to be a ghost.", "c": {"A": "尼基塔是我们一手训练出来的幽灵特工。", "B": "妮基塔是我们训练出来的幽灵", "C": "我们训练尼基塔如何隐藏自己", "D": "我们把尼基塔训练成了幽灵。", "E": "我们把尼基塔训练成了幽灵。"}}, {"t": "34:54", "rel": 50.37, "en": "Finding her when she doesn't want to be found is next to impossible.", "c": {"A": "她要是不想露面，神仙也难找。", "B": "她不想被找到，几乎没人能找到她", "C": "如果她不想暴露几乎不可能找到她", "D": "她不想被找到，那几乎不可能找到她。", "E": "她不想被找到，几乎不可能找到。"}}, {"t": "34:57", "rel": 52.79, "en": "Hey, guys.", "c": {"A": "哟，找我？", "B": "嘿，伙计们", "C": "嗨伙计们", "D": "嘿，各位。", "E": "嘿，各位。"}}]}, {"id": "B23", "show": "My Little Pony: Friendship Is Magic", "episode": "S01E01", "genre": "Animation", "span": "00:19:03 – 00:19:52", "dur": 52.3, "clip": "clips/B23.mp4", "vnote": "", "rows": [{"t": "19:03", "rel": 1.5, "en": "Fillies and gentlecolts.", "c": {"A": "女士们先生们", "B": "各位来宾！", "C": "各位小马先生小姐", "D": "马娘们，马绅士们！", "E": "小马驹们，绅士们。"}}, {"t": "19:08", "rel": 6.77, "en": "As mayor of Ponyville, it is my great pleasure to announce the beginning of the Summer Sun Celebration!", "c": {"A": "我激动地宣布，夏日庆典即将开始", "B": "本人身为小马镇镇长，荣幸宣布夏日庆典正式开始！", "C": "身为小马镇镇长 我很荣幸宣布 夏日庆典正式开始！", "D": "身为小马镇市长，我荣幸宣布夏日阳光庆典正式开始！", "E": "作为小马镇镇长，我很荣幸地宣布"}}, {"t": "19:16", "rel": 14.09, "en": "In just a few moments our town will witness the magic of the sunrise.", "c": {"A": "再过一会儿 我们将见证魔法带来的日出", "B": "片刻之后，全镇将共同见证日出的奇迹。", "C": "再过片刻 全镇将见证日出的奇迹", "D": "片刻之后，我们小马镇将见证日出的奇迹！", "E": "再过一会儿，我们镇上就能见证日出的魔法。"}}, {"t": "19:20", "rel": 18.51, "en": "And celebrate this, the longest day of the year!", "c": {"A": "同时庆祝这白昼最长的一天", "B": "共庆一年之中最长的一天！", "C": "共同庆祝这一年中最长的一天！", "D": "共襄盛举，欢庆这一年中最长的一天！", "E": "共同庆祝这一年中最长的一天！"}}, {"t": "19:24", "rel": 22.65, "en": "And now it is my great honor to introduce to you the ruler of our land.", "c": {"A": "现在，我很荣幸地向大家介绍这片土地的统治者", "B": "现在，我荣幸地为大家介绍我们的统治者。", "C": "现在我万分荣幸地 为大家介绍我们的统治者", "D": "现在，我深感荣幸，向各位介绍我们王国的君主——", "E": "现在我很荣幸地为大家介绍"}}, {"t": "19:29", "rel": 27.49, "en": "The very pony, who gives us the sun and the moon each and every day.", "c": {"A": "每天为我们带来旭日和皎月的", "B": "正是她，每天为我们带来日月轮转。", "C": "正是她 每天为我们带来日升月落", "D": "每日为我们掌管日月的——", "E": "这位小马每日为我们带来日月轮转。"}}, {"t": "19:33", "rel": 30.98, "en": "The good, the wise, the bringer of harmony to all of Equestria...", "c": {"A": "善良的，睿智的 为整个小马国带来和谐的", "B": "她善良、睿智，是整个马国和谐的守护者……", "C": "善良而睿智 为整个小马国带来和谐……", "D": "仁慈善良、睿智英明、为全小马国带来和谐的——", "E": "她善良睿智，为整个小马国带来和谐……"}}, {"t": "19:38", "rel": 36.09, "en": "Ready?", "c": {"A": "准备", "B": "准备好了吗？", "C": "准备好了吗？", "D": "准备好了吗？", "E": "准备好了吗？"}}, {"t": "19:39", "rel": 37.2, "en": "... Princess Celestia!", "c": {"A": "塞拉斯蒂娅公主", "B": "……塞西莉亚公主！", "C": "……有请赛拉斯蒂娅公主！", "D": "……塞莱斯蒂亚公主！", "E": "……她就是塞拉斯蒂亚公主！"}}, {"t": "19:46", "rel": 44.18, "en": "This can't be good.", "c": {"A": "这可不太好", "B": "这可不妙。", "C": "情况不妙", "D": "这可不妙。", "E": "这可不是好事。"}}, {"t": "19:48", "rel": 46.76, "en": "Remain calm, everypony.", "c": {"A": "", "B": "大家保持冷静。", "C": "大家保持冷静", "D": "小马们，请保持冷静！", "E": "大家保持冷静。"}}, {"t": "19:48", "rel": 46.76, "en": "There must be a reasonable explanation.", "c": {"A": "大家冷静 这一定事出有因", "B": "肯定有合理的解释。", "C": "肯定有合理的解释", "D": "此事必有合理的解释。", "E": "肯定有合理的解释。"}}]}, {"id": "B24", "show": "Pride and Prejudice", "episode": "S01E04", "genre": "Romance", "span": "00:28:14 – 00:28:51", "dur": 40.2, "clip": "clips/B24.mp4", "vnote": "", "rows": [{"t": "28:14", "rel": 1.5, "en": "And more too, for I am two years older!", "c": {"A": "而且还不止呢，我可比你大两岁！", "B": "还有我还比她大两岁", "C": "而且我比你大两岁！", "D": "还有更多呢，我可大两岁！", "E": "再说我还比她大两岁呢！"}}, {"t": "28:20", "rel": 7.96, "en": "I'll buy her a present, I dare say.", "c": {"A": "我肯定会给她买礼物的。", "B": "我应该送她一件礼物", "C": "我肯定会给她买礼物的。", "D": "我准会给她买份礼物。", "E": "我敢说，我会给她买份礼物的。"}}, {"t": "28:23", "rel": 10.8, "en": "There's no call to be in a miff because Mrs Forster likes me best.", "c": {"A": "福斯特夫人最喜欢我，你不必生气。", "B": "她没理由生气何况佛斯特太太最喜欢我了", "C": "福斯特太太最喜欢我，你犯不着吃醋。", "D": "福斯特太太最喜欢我，你也别使性子。", "E": "福斯特夫人最喜欢我，你们用不着闹别扭。"}}, {"t": "28:27", "rel": 15.01, "en": "Before you crow too loud, remember papa has not given you permission to go.", "c": {"A": "先别得意，爸爸还没答应让你去呢。", "B": "丽笛亚先别忙着向姐姐炫耀", "C": "别高兴太早，爸爸还没准你去呢。", "D": "别高兴太早，爸爸还没准你去呢。", "E": "别高兴得太早，别忘了爸爸还没答应让你去呢。"}}, {"t": "28:31", "rel": 18.85, "en": "Nor is he like to.", "c": {"A": "他也不会答应的。", "B": "别忘了爸爸还没答应你去而且也不可能答应", "C": "也不像会准的样子。", "D": "他也不像会准的。", "E": "他也不会答应的。"}}, {"t": "28:33", "rel": 20.77, "en": "Papa won't stop me.", "c": {"A": "爸爸不会拦着我的。", "B": "爸爸阻止不了我", "C": "爸爸不会拦我的。", "D": "爸爸拦不住我。", "E": "爸爸拦不住我。"}}, {"t": "28:35", "rel": 22.48, "en": "Not when I'm invited by the Colonel to be his wife's particular companion!", "c": {"A": "毕竟是上校邀我做他妻子的贴身伴友！", "B": "民团上校已经专程邀请我和他太太作伴", "C": "上校亲自邀我去陪他夫人，爸爸怎么会拦！", "D": "上校请我给他太太作贴身伴儿呢！", "E": "上校亲自邀请我做他夫人的贴身女伴呢！"}}, {"t": "28:43", "rel": 30.19, "en": "I need new clothes, for I've nothing fit to wear, and there will be balls and parties!", "c": {"A": "我得添新衣服，我没件像样的，还要参加舞会和聚会！", "B": "妈妈,我得买新衣服才行 我没有适合的衣服穿那里一定每晚都有舞会派对", "C": "我得买新衣服，没一件拿得出手，还有舞会和派对呢！", "D": "我得添新衣，没件能穿的，还有舞会和聚会呢！", "E": "我需要新衣服，我现在的衣服都不能见人，还要参加舞会和宴席呢！"}}, {"t": "28:45", "rel": 32.99, "en": "Of course you shall have new things!", "c": {"A": "当然会给你添新衣服的！", "B": "你当然要买新衣服", "C": "当然要给你买新的！", "D": "你当然得有新衣裳！", "E": "当然会给你买新的！"}}, {"t": "28:48", "rel": 35.74, "en": "We wouldn't see you disgraced in front of all the officers!", "c": {"A": "总不能让你在军官们面前丢脸！", "B": "我们可不会让你在全体军官面前丢脸", "C": "可不能让你在军官们面前丢脸！", "D": "总不能让你在军官面前丢脸！", "E": "我们怎能让你在众位军官面前丢脸！"}}]}, {"id": "B25", "show": "Monty Python's Flying Circus", "episode": "S01E01", "genre": "Comedy", "span": "00:02:35 – 00:03:14", "dur": 41.6, "clip": "clips/B25.mp4", "vnote": "", "rows": [{"t": "02:35", "rel": 1.5, "en": "Nice to have you on the show.", "c": {"A": "很高兴请到你上节目", "B": "很高兴您能来参加我们的节目！", "C": "很高兴请你上节目。", "D": "运气挺差的成吉思 很高兴你来参加节目", "E": "欢迎来到节目。"}}, {"t": "02:37", "rel": 3.58, "en": "And now, here are the scores.", "c": {"A": "下面来看比分", "B": "好，现在公布最终得分！", "C": "现在，来看比分。", "D": "我们来看看排行榜", "E": "现在来看一下积分榜。"}}, {"t": "02:40", "rel": 6.26, "en": "Well, there you can see the scores, now.", "c": {"A": "现在大家可以看到比分了", "B": "好，现在大家可以看到得分了。", "C": "各位可以看到比分了。", "D": "这是大家的分数", "E": "好，大家现在可以看到积分。"}}, {"t": "02:42", "rel": 8.3, "en": "St. Stephen in the lead there, with his stoning.", "c": {"A": "圣斯蒂芬凭石刑领跑", "B": "圣司提反暂居榜首——石刑，功不可没！", "C": "圣斯蒂芬凭石刑领先。", "D": "被石头砸死的圣史蒂芬排名第一", "E": "斯蒂芬圣人以被石砸死暂列第一。"}}, {"t": "02:45", "rel": 10.94, "en": "Then comes King Richard Ill at Bosworth Field.", "c": {"A": "紧随的是博斯沃思战场的理查三世", "B": "紧随其后的是——理查三世，博斯沃思战役！", "C": "紧随其后是博斯沃思之战的理查三世。", "D": "再来是于博斯沃思原野战死的理查三世国王", "E": "其次是博斯沃思战场上的理查三世。"}}, {"t": "02:48", "rel": 14.3, "en": "A grand death, that.", "c": {"A": "那可是壮烈的一死", "B": "死得其所，壮哉！", "C": "死得真是精彩。", "D": "死状相当惨烈", "E": "死得相当壮烈。"}}, {"t": "02:49", "rel": 15.74, "en": "Then the very lovely Jean d'Arc.", "c": {"A": "接着是可爱的圣女贞德", "B": "接着是风姿绰约的圣女贞德！", "C": "然后是可爱的圣女贞德。", "D": "接着是可爱的圣女贞德", "E": "然后是美丽的圣女贞德。"}}, {"t": "02:51", "rel": 17.82, "en": "Then Marat in his bath.", "c": {"A": "然后是浴缸里的马拉", "B": "接着是马拉——浴缸里的那一刀！", "C": "再是浴缸里的马拉。", "D": "然后是躺在浴缸的马拉", "E": "再是浴缸里的马拉。"}}, {"t": "02:54", "rel": 20.38, "en": "Best of friends with Charlotte in the showers afterwards.", "c": {"A": "赛后跟夏洛特在浴室成了好友", "B": "赛后跟夏洛特在淋浴室里打得火热！", "C": "事后和夏洛特成了淋浴间好友。", "D": "之后被好友夏绿蒂给杀死", "E": "之后和夏洛特在淋浴室相谈甚欢。"}}, {"t": "02:57", "rel": 23.7, "en": "Then A. Lincoln of the U.S. of A. A grand little chap, that.", "c": {"A": "美国的林肯 那小伙真了不起", "B": "接着是美利坚合众国的A·林肯！这小子，了不起！", "C": "然后是美国的林肯，好个了不起的小伙子。", "D": "再来是美国的亚伯拉罕林肯", "E": "然后是美利坚的林肯先生，了不起的小个子。"}}, {"t": "03:00", "rel": 26.78, "en": "And at number six, Genghis Khan.", "c": {"A": "第六名 成吉思汗", "B": "接着是第六位——成吉思汗！", "C": "第六名，成吉思汗。", "D": "很不赖的家伙 第六名是成吉思汗", "E": "第六名是成吉思汗。"}}, {"t": "03:03", "rel": 29.14, "en": "And the back marker, King Edward VII.", "c": {"A": "垫底的是爱德华七世", "B": "殿后的是爱德华七世！", "C": "垫底的是爱德华七世。", "D": "最后是爱德华七世国王", "E": "垫底的是爱德华七世国王。"}}, {"t": "03:06", "rel": 32.18, "en": "Back to you, Wolfgang.", "c": {"A": "交给你了 沃夫冈", "B": "交给你了，沃尔夫冈。", "C": "交还给你，沃尔夫冈。", "D": "沃夫冈现场交还给你", "E": "交还给你，沃尔夫冈。"}}, {"t": "03:08", "rel": 34.18, "en": "Thank you, Eddie.", "c": {"A": "谢谢你 埃迪", "B": "谢谢你，埃迪。", "C": "谢谢，埃迪。", "D": "艾迪谢谢", "E": "谢谢你，埃迪。"}}, {"t": "03:10", "rel": 36.38, "en": "And now, time for this week's request death.", "c": {"A": "现在到了本周点播死法环节", "B": "现在进入本周观众点播死法环节。", "C": "现在是本周的点播死亡时间。", "D": "现在是本周的死亡点播时间", "E": "现在，是本周点播死法环节。"}}]}, {"id": "B26", "show": "Shadow and Bone", "episode": "S01E01", "genre": "Action", "span": "00:14:15 – 00:15:03", "dur": 50.7, "clip": "clips/B26.mp4", "vnote": "", "rows": [{"t": "14:15", "rel": 1.5, "en": "It doesn't take much to change someone's life in the Barrel.", "c": {"A": "在木桶区，改变一个人的命运不需要多少钱。", "B": "在贫民窟改变一个人的命运很容易", "C": "在桶区，改变一个人的命运不需要太多。", "D": "在巴罗改变一个人的生活 可要不了多少钱", "E": "在暗桶区，一点点就能让人的生活天翻地覆。"}}, {"t": "14:18", "rel": 4.09, "en": "A million kruge?", "c": {"A": "一百万克鲁格？", "B": "一百万克鲁格？", "C": "一百万克鲁格？", "D": "一百万克鲁格？", "E": "一百万克鲁格？"}}, {"t": "14:22", "rel": 8.84, "en": "What's the name?", "c": {"A": "他叫什么名字？", "B": "叫什么名字？", "C": "谁出的价？", "D": "雇主是谁？", "E": "叫什么名字？"}}, {"t": "14:24", "rel": 10.38, "en": "Dreesen.", "c": {"A": "德雷森。", "B": "德里森", "C": "德雷森。", "D": "", "E": "德雷森。"}}, {"t": "14:24", "rel": 10.38, "en": "A wealthy merchant.", "c": {"A": "一个富商。", "B": "一个富商", "C": "一个有钱的商人。", "D": "德里森一个富商", "E": "一位富甲一方的商人。"}}, {"t": "14:27", "rel": 12.93, "en": "Dreesen.", "c": {"A": "德雷森。", "B": "德里森", "C": "德雷森。", "D": "德里森", "E": "德雷森。"}}, {"t": "14:28", "rel": 14.68, "en": "I've heard of him.", "c": {"A": "听过这个名字。", "B": "我听说过他", "C": "我听说过这个人。", "D": "我听说过他", "E": "此人我有所耳闻。"}}, {"t": "14:30", "rel": 16.26, "en": "He could afford it.", "c": {"A": "他出得起这个价。", "B": "他出得起这个价", "C": "他出得起这个钱。", "D": "他出得起这个价钱", "E": "他出得起。"}}, {"t": "14:33", "rel": 19.1, "en": "The question is, what's worth a million kruge to him?", "c": {"A": "问题是，什么东西值一百万克鲁格？", "B": "问题是 什么值他一百万克鲁格？", "C": "问题是，什么东西值他出一百万？", "D": "问题是对他来说 什么东西值一百万克鲁格？", "E": "问题是，他觉得什么东西值一百万克鲁格？"}}, {"t": "14:38", "rel": 24.77, "en": "He's looking for a crew willing to cross the Fold into East Ravka and bring back something.", "c": {"A": "他要找愿意穿过阴影褶皱去东拉夫卡的人。", "B": "他想找人穿过虚境到东拉夫卡 带回一样东西", "C": "他在找一队人，穿越折叠去东拉夫卡带样东西回来。", "D": "带一样东西回来", "E": "他在招胆敢穿越影折去东拉夫卡取东西的人。"}}, {"t": "14:42", "rel": 28.19, "en": "The Fold?", "c": {"A": "阴影褶皱？", "B": "虚境？", "C": "折叠？", "D": "黑幕？", "E": "影折？"}}, {"t": "14:44", "rel": 30.74, "en": "Well, of course, certain death pays a million.", "c": {"A": "怪不得，送命的活才值一百万。", "B": "当然 送命的活才值一百万", "C": "嗯，必死的活儿当然要给一百万。", "D": "当然了找人送死确实得花一百万", "E": "当然了，送命的活儿才能值一百万。"}}, {"t": "14:47", "rel": 33.53, "en": "He didn't say what he wants nicked?", "c": {"A": "他没说要偷什么？", "B": "他没说要偷什么？", "C": "他没说要偷什么？", "D": "他没说清楚想要什么东西？", "E": "他没说要捞什么？"}}, {"t": "14:49", "rel": 35.03, "en": "No.", "c": {"A": "没有。", "B": "没有", "C": "没有。", "D": "没有", "E": "没有。"}}, {"t": "14:50", "rel": 36.29, "en": "But he's taking meetings tonight, starting at midnight.", "c": {"A": "但他今晚要见人，午夜开始。", "B": "但他今晚要见人 午夜开始", "C": "但他今晚会面，从午夜开始。", "D": "但他要在今晚面试人选从午夜开始", "E": "但他今晚从午夜起要密谈。"}}, {"t": "14:53", "rel": 39.66, "en": "Tell me you followed him.", "c": {"A": "你跟着他了吧？", "B": "别告诉我你没跟着他", "C": "你跟上他了吧。", "D": "你应该跟踪过他吧？", "E": "你跟上他了吧？"}}, {"t": "14:56", "rel": 42.29, "en": "He brought someone in from a ship.", "c": {"A": "他从船上接了个人。", "B": "他从一艘船上带来了个人", "C": "他从一艘船上接了个人。", "D": "他从船上带下来一个人", "E": "他从船上带了个人来。"}}, {"t": "14:59", "rel": 45.63, "en": "Took a way back to his house in the Garden District to avoid attention.", "c": {"A": "绕路回了花园区的家，避人耳目。", "B": "绕路回花园区的家 为了避人耳目", "C": "绕路回花园区的宅子，为了避人耳目。", "D": "为了避人耳目从花园区走回他家", "E": "他绕道回到花园区的宅邸，避人耳目。"}}]}, {"id": "B27", "show": "Hannibal", "episode": "S01E01", "genre": "Horror", "span": "00:28:30 – 00:29:07", "dur": 40.3, "clip": "clips/B27.mp4", "vnote": "", "rows": [{"t": "28:30", "rel": 1.5, "en": "The stag head was reported stolen last night, about a mile from here.", "c": {"A": "昨晚有人报告鹿头被盗，就在离这里约一英里处。", "B": "鹿头昨晚在离这里 大概一英里远的地方报告被盗", "C": "昨晚有人报案，称约一英里外的鹿头标本遭窃。", "D": "有人报案昨晚这附近丢了个鹿头", "E": "鹿头昨晚被报失窃 就在一英里外"}}, {"t": "28:34", "rel": 5.25, "en": "Just the head?", "c": {"A": "只有头？", "B": "只有头吗", "C": "只有头？", "D": "就丢了个头？", "E": "就只有头？"}}, {"t": "28:35", "rel": 6.34, "en": "Minneapolis Homicide's already made a statement.", "c": {"A": "明尼阿波利斯凶杀组已经发表声明了。", "B": "明尼阿波利斯警局凶案组已发表声明", "C": "明尼阿波利斯刑事部门已发表声明。", "D": "明尼阿波利斯凶案组已经发了声明", "E": "明尼阿波利斯凶案组已经发声明了"}}, {"t": "28:38", "rel": 8.97, "en": "They're calling him the Minnesota Shrike.", "c": {"A": "他们叫他\"明尼苏达伯劳\"。", "B": "称他为 \"明州伯劳鸟 \"", "C": "他们管他叫'明尼苏达伯劳'。", "D": "他们叫他“明尼苏达伯劳”", "E": "他们管他叫明尼苏达伯劳"}}, {"t": "28:40", "rel": 11.55, "en": "Like the bird?", "c": {"A": "就像那种鸟？", "B": "是鸟的名字吗", "C": "像那种鸟？", "D": "那种鸟？", "E": "那种鸟？"}}, {"t": "28:42", "rel": 13.18, "en": "Shrike's a perching bird.", "c": {"A": "伯劳是一种栖鸟。", "B": "伯劳鸟喜欢树栖", "C": "伯劳是雀形目鸟类。", "D": "伯劳是一种栖鸟", "E": "伯劳是种栖息鸟"}}, {"t": "28:44", "rel": 15.35, "en": "Impales mice and lizards on thorny branches and barbed wire.", "c": {"A": "会把老鼠和蜥蜴串在荆棘枝和铁丝网上。", "B": "它们用尖树枝或带刺铁丝扎老鼠和蜥蜴", "C": "把老鼠和蜥蜴钉在荆棘枝和铁丝网上。", "D": "把老鼠蜥蜴钉在带刺的枝条和铁丝网上", "E": "把老鼠和蜥蜴串在荆棘和铁丝网上"}}, {"t": "28:50", "rel": 21.77, "en": "Rips their organs right out of their bodies, puts them in a little birdie pantry, and eats them later.", "c": {"A": "把内脏从躯体里扯出来，存进它的小食橱，留着慢慢吃。", "B": "放置在自己的食品室里 稍后品尝", "C": "生生撕出内脏，存入自己的小储藏室，留待日后享用。", "D": "把内脏挖出来 藏进小仓库 留着以后吃", "E": "把内脏扯出来 存进它的小食库 留着以后吃"}}, {"t": "28:54", "rel": 25.19, "en": "I can't tell whether it's sloppy or shrewd.", "c": {"A": "我看不出这到底是粗心还是精明。", "B": "不知他是草率还是精心策划成这样", "C": "我看不出这是粗心大意还是老谋深算。", "D": "看不出这是马虎还是精心设计", "E": "我说不好是马虎还是精明"}}, {"t": "28:57", "rel": 28.32, "en": "He wanted her found this way.", "c": {"A": "他故意要让人发现她是这个样子。", "B": "他希望她被找到时是这个样子", "C": "他就是要让人发现她是这副模样。", "D": "他就想让人这样发现她", "E": "他就想让她被这样发现"}}, {"t": "29:02", "rel": 33.12, "en": "It's petulant.", "c": {"A": "这是在赌气。", "B": "非常无礼", "C": "这是在撒娇耍性子。", "D": "带着点耍脾气的意味", "E": "带着股任性劲儿"}}, {"t": "29:05", "rel": 36.33, "en": "I almost feel like he's mocking her.", "c": {"A": "感觉他几乎是在嘲弄她。", "B": "我甚至能感觉到他在嘲笑她", "C": "我总觉得，他是在嘲弄她。", "D": "我甚至觉得他在嘲弄她", "E": "我几乎觉得他在嘲弄她"}}]}, {"id": "B28", "show": "Star Trek: Picard", "episode": "S01E01", "genre": "Action", "span": "00:30:58 – 00:31:33", "dur": 38.9, "clip": "clips/B28.mp4", "vnote": "", "rows": [{"t": "30:58", "rel": 1.5, "en": "Have you ever considered the possibility that...", "c": {"A": "你有没有想过……也许……", "B": "你有没有想过一种可能", "C": "你有没有想过一种可能……", "D": "你有没有想过这种可能——", "E": "你有没有想过有可能..."}}, {"t": "31:00", "rel": 3.92, "en": "That I'm a soulless murder machine?", "c": {"A": "我是个没有灵魂的杀人机器？", "B": "我是台冷血的杀人机器？", "C": "我是台没灵魂的杀人机器？", "D": "我是个没有灵魂的杀人机器？", "E": "我是一个没有灵魂的杀人机器？"}}, {"t": "31:07", "rel": 10.72, "en": "That are you something lovingly and deliberately created, like Dahj oncidium?", "c": {"A": "还是……像达吉文心兰一样，是被人满怀爱意、精心创造出的生命？", "B": "还是像达什一样，是被精心地、充满爱意地创造出来的，像“奥西迪姆”？", "C": "你是被人精心创造出来的，就像达姬兰花？", "D": "你是被精心创造出来的，就像达吉一样？", "E": "就像达赫文心兰？"}}, {"t": "31:08", "rel": 12.09, "en": "You're telling me that I'm not real.", "c": {"A": "你是说……我根本不是真实的？", "B": "你是说我不是真实的", "C": "你是说我不是真实的。", "D": "你是说我不是真实存在的。", "E": "你是在说我不是真实的人类"}}, {"t": "31:11", "rel": 14.51, "en": "No, I'm not.", "c": {"A": "不，我不是这个意思。", "B": "不，你不是", "C": "不，我不是。", "D": "不，我不是这个意思。", "E": "不我不是这个意思"}}, {"t": "31:17", "rel": 20.64, "en": "If you are who I think you are... you are dear to me in ways that you can't understand.", "c": {"A": "如果你就是我心中那个人……你对我的意义，你无从想象。", "B": "如果你真是我以为的那个人… 你对我意义非凡，超乎你的理解", "C": "如果你真是我认为的那个人……你对我而言无比珍贵，你无法想象。", "D": "如果你就是我所想的那个人……\n你对我的意义是你无法想象的。", "E": "那么你就是我很珍视的人虽然你无法理解其中的原因"}}, {"t": "31:23", "rel": 26.48, "en": "I will never leave you.", "c": {"A": "我永远不会离开你。", "B": "我永远不会离开你", "C": "我永远不会离开你。", "D": "我绝不会抛下你。", "E": "我永远不会抛弃你"}}, {"t": "31:25", "rel": 28.94, "en": "We will go together to the Daystrom Institute in Okinawa.", "c": {"A": "我们一起去冲绳的戴斯特罗姆研究所吧。", "B": "我们会一起去冲绳的戴斯特罗姆研究所", "C": "我们一起去冲绳的戴斯特姆研究所。", "D": "我们一起去冲绳的戴斯特朗研究所。", "E": "我们一起去冲绳岛的德斯多姆研究所"}}, {"t": "31:30", "rel": 34.12, "en": "I was just accepted at Daystrom as a research fellow.", "c": {"A": "我刚被戴斯特罗姆研究所录取为研究员。", "B": "我刚被戴斯特罗姆录取为研究员", "C": "我刚被戴斯特姆录取为研究员。", "D": "我刚刚被戴斯特朗录取为研究员。", "E": "德斯多姆刚刚录取我当研究员"}}]}, {"id": "B29", "show": "Star Trek: The Next Generation", "episode": "S03E01", "genre": "Action", "span": "00:12:47 – 00:13:23", "dur": 39.7, "clip": "clips/B29.mp4", "vnote": "", "rows": [{"t": "12:47", "rel": 1.5, "en": "- Evasive action.", "c": {"A": "人工装置也失灵了我们没有防护罩了 -准备闪避", "B": "规避机动。", "C": "规避机动。", "D": "规避机动", "E": "规避机动！"}}, {"t": "12:50", "rel": 5.17, "en": "Bring her round to 275, mark three.", "c": {"A": "转向到二七五标号三的位置", "B": "转向275，仰角3。", "C": "转向275度，标记三。", "D": "转向275，仰角3", "E": "转向275，仰角3。"}}, {"t": "12:53", "rel": 7.43, "en": "Predict vector of Borg vessel.", "c": {"A": "测出目前博格人的方位", "B": "预测博格战舰航向。", "C": "预测博格飞船航向。", "D": "预测博格飞船的航向", "E": "预测博格飞船的航向。"}}, {"t": "12:58", "rel": 13.14, "en": "Vector is gone!", "c": {"A": "...不见了", "B": "航向消失了！", "C": "航向消失了！", "D": "航向消失了", "E": "航向消失了！"}}, {"t": "13:00", "rel": 14.61, "en": "And so is the Borg ship.", "c": {"A": "博格人也消失了", "B": "博格战舰也消失了。", "C": "博格飞船也不见了。", "D": "博格飞船也不见了", "E": "博格飞船也不见了。"}}, {"t": "13:02", "rel": 16.68, "en": "Is this another computer glitch?", "c": {"A": "难道这又是电脑搞的鬼吗?", "B": "这又是计算机故障吗？", "C": "又是电脑故障？", "D": "又是电脑故障吗", "E": "又是电脑故障？"}}, {"t": "13:05", "rel": 19.35, "en": "It could be a synthetically-generated image.", "c": {"A": "荧幕上所显示的可能只是电脑合成影像舰长", "B": "可能是电脑生成的虚假图像。", "C": "可能是合成生成的影像。", "D": "可能是合成生成的图像", "E": "可能是合成影像。"}}, {"t": "13:08", "rel": 23.18, "en": "Our computer was daydreaming?", "c": {"A": "难道电脑在做白日梦", "B": "我们的计算机在做白日梦？", "C": "我们的电脑在做梦？", "D": "电脑在做白日梦吗", "E": "我们的电脑在做白日梦？"}}, {"t": "13:14", "rel": 28.69, "en": "Computer, identify malfunction.", "c": {"A": "电脑立刻自动检查故障", "B": "计算机，查明故障原因。", "C": "电脑，查明故障。", "D": "电脑，识别故障", "E": "电脑，报告故障原因。"}}, {"t": "13:17", "rel": 31.99, "en": "Pawn to bishop four.", "c": {"A": "", "B": "兵走象四。", "C": "兵move到象四。", "D": "兵到象四", "E": "兵到象四。"}}, {"t": "13:17", "rel": 31.99, "en": "Knight to king's rook three.", "c": {"A": "卒向白主教四武士向国王城堡三", "B": "马跳王车三。", "C": "马move到王翼车三。", "D": "马到王翼车三", "E": "马到王车三。"}}, {"t": "13:21", "rel": 36.16, "en": "Bishop to queen's bishop four.", "c": {"A": "主教向后旁主教四", "B": "象走后象四。", "C": "象move到后翼象四。", "D": "象到后翼象四", "E": "象到后象四。"}}]}, {"id": "B30", "show": "The World at War", "episode": "S01E02", "genre": "Documentary", "span": "00:18:51 – 00:19:29", "dur": 41.0, "clip": "clips/B30.mp4", "vnote": "", "rows": [{"t": "18:51", "rel": 1.5, "en": "Three British divisions went off to France at the beginning of the war.", "c": {"A": "战争之初三个英国师开赴法国", "B": "战争初期，三个英国师奔赴法国。", "C": "战争开始后三个英国师开赴法国", "D": "大战伊始，英军三个师开赴法国。", "E": "战争初期，英国派出三个师赴法作战。"}}, {"t": "18:55", "rel": 5.67, "en": "More followed.\" Nearly 200,000 men,\" said the war minister proudly.", "c": {"A": "还有更多 陆军大臣自豪地说 近二十万人", "B": "随后又有更多人跟上。\\n战争部长自豪地说：\"将近二十万人。\"", "C": "更多的师跟进 \"差不多 200, 000人, \"战争部长骄傲地说.", "D": "更多部队随后跟进。\"将近二十万大军！\"陆军大臣自豪地宣布。", "E": "随后又增派兵力，陆军大臣自豪地说“近二十万人”。"}}, {"t": "19:01", "rel": 11.01, "en": "The French had mobilised six million men.", "c": {"A": "法国已动员了六百万人", "B": "而法国动员了六百万人。", "C": "法国人已经动员了六百万人", "D": "法国已动员了六百万人。", "E": "而法国动员了六百万人。"}}, {"t": "19:03", "rel": 13.68, "en": "They grumbled that the British weren't taking the war seriously.", "c": {"A": "他们抱怨英国人对战争不上心", "B": "法国人抱怨英国人没把战争当回事。", "C": "他们抱怨英国人没有把战争当回事", "D": "他们抱怨英国人对这场战争不够上心。", "E": "他们抱怨英国人不把这场战争当回事。"}}, {"t": "19:07", "rel": 17.35, "en": "(Gracie Fields) ♪ Wish me luck as you wave me goodbye", "c": {"A": "（葛蕾丝·菲尔兹）♪ 挥手道别时 祝我好运", "B": "（葛瑞西·菲尔兹）♪ 挥手送我离去时，祝我好运", "C": "(格蕾西 ·菲尔茨) ♪当你向我挥手告别祝我好运吧", "D": "（格雷西·菲尔兹）♪祝我好运在你向我挥手告别时", "E": "（格蕾丝·菲尔兹）♪ 一首送别的歌声响起 ♪"}}, {"t": "19:13", "rel": 23.1, "en": "(men join in) ♪ Cheerio, here I go on my way", "c": {"A": "（众人加入）♪ 再见 我这就上路", "B": "（众人合唱）♪ 再见啦，我就此上路", "C": "♪好呀,我这就上路", "D": "（男声齐唱）♪再见了，我要踏上征程", "E": "（众人合唱）♪ 大家齐声道别 我要出发了 ♪"}}, {"t": "19:19", "rel": 29.11, "en": "♪ Wish me luck as you wave me goodbye", "c": {"A": "♪ 挥手道别时 祝我好运", "B": "♪ 挥手送我离去时，祝我好运", "C": "♪当你向我挥手告别祝我好运吧", "D": "♪祝我好运在你向我挥手告别时", "E": "♪ 挥手告别 祝我一路平安 ♪"}}, {"t": "19:24", "rel": 34.2, "en": "♪ With a cheer, not a tear, make it gay", "c": {"A": "♪ 别流泪 送上欢呼 欢欢喜喜", "B": "♪ 欢声笑语送行，莫要以泪洗面", "C": "♪带着欢乐,不是眼泪,轻松点", "D": "♪欢声相送，莫要流泪，让离别充满欢乐", "E": "♪ 别流泪 笑着为我送行 ♪"}}]}];
+const DIMS   = [["accuracy", "准确性", "是否忠实传达英文原意：有无漏译、误译、擅自添加"], ["terminology", "术语与专名", "专有名词、行业术语、有既定中译的说法是否用对、全段是否前后一致（<b>不确定就查一下再打分</b>；纯风格偏好如「幽灵特工/幽灵」不算错）"], ["fluency", "中文流畅度", "读起来像不像中文母语者写的：有无翻译腔、生硬搭配"], ["conventions", "语言规范", "有无错别字、语法错误、搭配不当、标点用错（<b>标点多少与句末有无句号属风格，不扣分</b>）"], ["style", "口语与人物语气", "是否贴合角色身份、情绪与场景语气"], ["subtitle", "字幕规范", "单行长短是否适合一眼读完、断句是否自然"]];
+const SCALE  = [[1, "很差"], [2, "较差"], [3, "一般"], [4, "较好"], [5, "很好"]];
+const COLS   = ["A", "B", "C", "D", "E"];     // ["A","B",...] 匿名栏位
+const COLOR  = {"A": "#5aa9e6", "B": "#f2a65a", "C": "#7fd18f", "D": "#c49bf0", "E": "#f0879f"};    // 栏位 -> 颜色
+const KEYB64 = "eyJCMDEiOiB7IkEiOiAib3B1czQ4IiwgIkIiOiAic29ubmV0NDYiLCAiQyI6ICJ2NCIsICJEIjogInNvbm5ldDUiLCAiRSI6ICJyYXcifSwgIkIwMiI6IHsiQSI6ICJ2NCIsICJCIjogInNvbm5ldDUiLCAiQyI6ICJyYXciLCAiRCI6ICJvcHVzNDgiLCAiRSI6ICJzb25uZXQ0NiJ9LCAiQjAzIjogeyJBIjogInNvbm5ldDUiLCAiQiI6ICJyYXciLCAiQyI6ICJvcHVzNDgiLCAiRCI6ICJzb25uZXQ0NiIsICJFIjogInY0In0sICJCMDQiOiB7IkEiOiAic29ubmV0NDYiLCAiQiI6ICJ2NCIsICJDIjogInNvbm5ldDUiLCAiRCI6ICJyYXciLCAiRSI6ICJvcHVzNDgifSwgIkIwNSI6IHsiQSI6ICJyYXciLCAiQiI6ICJvcHVzNDgiLCAiQyI6ICJzb25uZXQ0NiIsICJEIjogInY0IiwgIkUiOiAic29ubmV0NSJ9LCAiQjA2IjogeyJBIjogInJhdyIsICJCIjogInNvbm5ldDQ2IiwgIkMiOiAic29ubmV0NSIsICJEIjogInY0IiwgIkUiOiAib3B1czQ4In0sICJCMDkiOiB7IkEiOiAic29ubmV0NDYiLCAiQiI6ICJzb25uZXQ1IiwgIkMiOiAidjQiLCAiRCI6ICJvcHVzNDgiLCAiRSI6ICJyYXcifSwgIkIxMSI6IHsiQSI6ICJvcHVzNDgiLCAiQiI6ICJyYXciLCAiQyI6ICJzb25uZXQ0NiIsICJEIjogInNvbm5ldDUiLCAiRSI6ICJ2NCJ9LCAiQjEyIjogeyJBIjogInNvbm5ldDUiLCAiQiI6ICJ2NCIsICJDIjogIm9wdXM0OCIsICJEIjogInJhdyIsICJFIjogInNvbm5ldDQ2In0sICJCMTMiOiB7IkEiOiAidjQiLCAiQiI6ICJvcHVzNDgiLCAiQyI6ICJyYXciLCAiRCI6ICJzb25uZXQ0NiIsICJFIjogInNvbm5ldDUifSwgIkIyMSI6IHsiQSI6ICJzb25uZXQ0NiIsICJCIjogIm9wdXM0OCIsICJDIjogInY0IiwgIkQiOiAic29ubmV0NSIsICJFIjogInJhdyJ9LCAiQjIyIjogeyJBIjogInY0IiwgIkIiOiAic29ubmV0NSIsICJDIjogInJhdyIsICJEIjogInNvbm5ldDQ2IiwgIkUiOiAib3B1czQ4In0sICJCMjMiOiB7IkEiOiAicmF3IiwgIkIiOiAic29ubmV0NDYiLCAiQyI6ICJvcHVzNDgiLCAiRCI6ICJ2NCIsICJFIjogInNvbm5ldDUifSwgIkIyNCI6IHsiQSI6ICJzb25uZXQ1IiwgIkIiOiAicmF3IiwgIkMiOiAic29ubmV0NDYiLCAiRCI6ICJvcHVzNDgiLCAiRSI6ICJ2NCJ9LCAiQjI1IjogeyJBIjogIm9wdXM0OCIsICJCIjogInY0IiwgIkMiOiAic29ubmV0NSIsICJEIjogInJhdyIsICJFIjogInNvbm5ldDQ2In0sICJCMjYiOiB7IkEiOiAic29ubmV0NSIsICJCIjogIm9wdXM0OCIsICJDIjogInNvbm5ldDQ2IiwgIkQiOiAicmF3IiwgIkUiOiAidjQifSwgIkIyNyI6IHsiQSI6ICJzb25uZXQ0NiIsICJCIjogInJhdyIsICJDIjogInY0IiwgIkQiOiAic29ubmV0NSIsICJFIjogIm9wdXM0OCJ9LCAiQjI4IjogeyJBIjogInY0IiwgIkIiOiAic29ubmV0NSIsICJDIjogIm9wdXM0OCIsICJEIjogInNvbm5ldDQ2IiwgIkUiOiAicmF3In0sICJCMjkiOiB7IkEiOiAicmF3IiwgIkIiOiAidjQiLCAiQyI6ICJzb25uZXQ1IiwgIkQiOiAib3B1czQ4IiwgIkUiOiAic29ubmV0NDYifSwgIkIzMCI6IHsiQSI6ICJvcHVzNDgiLCAiQiI6ICJzb25uZXQ0NiIsICJDIjogInJhdyIsICJEIjogInY0IiwgIkUiOiAic29ubmV0NSJ9fQ=="; // 栏位归属，base64；分析时用 answer_key.json，别在这里偷看
+
+let ans = {};          // block -> {c:{A:{dim:score},...}, best, worst, note, bad}
+let rater = "";
+
+function lsKey(){ return "subtitle_study_" + (rater || "anon"); }
+
+function load(){
+  rater = localStorage.getItem("subtitle_study_rater") || "";
+  document.getElementById("rater").value = rater;
+  try { ans = JSON.parse(localStorage.getItem(lsKey()) || "{}"); } catch(e){ ans = {}; }
+}
+function save(){
+  localStorage.setItem("subtitle_study_rater", rater);
+  localStorage.setItem(lsKey(), JSON.stringify(ans));
+  status();
+}
+function slot(id){
+  if(!ans[id]) ans[id] = {c:{}, best:"", worst:"", note:"", bad:false};
+  const a = ans[id];
+  if(!a.c) a.c = {};                       // 兼容旧存档
+  COLS.forEach(s => { if(!a.c[s]) a.c[s] = {}; });
+  return a;
+}
+function isDone(id){
+  const a = ans[id]; if(!a || !a.c) return false;
+  return COLS.every(s => a.c[s] && DIMS.every(d => a.c[s][d[0]])) && !!a.best && !!a.worst;
+}
+function status(){
+  const n = BLOCKS.filter(b => isDone(b.id)).length;
+  document.getElementById("prog").style.width = (100*n/BLOCKS.length) + "%";
+  document.getElementById("cnt").textContent = n + " / " + BLOCKS.length;
+  document.getElementById("status").textContent = rater
+    ? ("标注员 " + rater + " · 已完成 " + n + "/" + BLOCKS.length)
+    : "未填写标注员 ID";
+  BLOCKS.forEach(b => {
+    const el = document.getElementById("card_" + b.id);
+    if(el) el.classList.toggle("done", isDone(b.id));
+  });
+}
+
+function esc(s){ return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+function optRow(bid, col, dim){
+  const cur = slot(bid).c[col][dim] || 0;
+  return SCALE.map(([v,lab]) =>
+    `<label class="${cur==v?'on':''}" data-b="${bid}" data-s="${col}" data-d="${dim}" data-v="${v}">
+       <input type="radio" name="${bid}_${col}_${dim}" ${cur==v?'checked':''}><span>${v}</span>
+       <div class="muted" style="font-size:10px">${lab}</div>
+     </label>`).join("");
+}
+
+function sideBox(b, col){
+  return `<div class="side" style="border-top:3px solid ${COLOR[col]}">
+    <h4 style="color:${COLOR[col]}">译文 ${col}</h4>
+    ${DIMS.map(d => `<div class="dim">
+        <div class="lbl">${d[1]}</div><div class="hint">${d[2]}</div>
+        <div class="opts">${optRow(b.id, col, d[0])}</div>
+      </div>`).join("")}
+  </div>`;
+}
+
+function pickRow(b, kind){
+  const a = slot(b.id), cur = a[kind];
+  return `<div class="pick ${kind==='worst'?'worst':''}">
+    <span class="lb">${kind==='best'?'整段<b>最好</b>的一栏':'整段<b>最差</b>的一栏'}：</span>
+    <div class="opts">${COLS.map(s =>
+      `<label class="${cur==s?'on':''}" data-b="${b.id}" data-pick="${kind}" data-col="${s}"
+        ><span style="color:${COLOR[s]}">译文 ${s}</span></label>`).join("")}</div>
+  </div>`;
+}
+
+function render(){
+  document.getElementById("blocks").innerHTML = BLOCKS.map(b => {
+    const rows = b.rows.map((r,j) => `<tr id="row_${b.id}_${j}">
+        <td class="tcol" data-b="${b.id}" data-rel="${r.rel}">${r.t}</td>
+        <td class="encol">${esc(r.en)}</td>
+        ${COLS.map(s => `<td class="ccol" style="border-left-color:${COLOR[s]}">${
+            esc(r.c[s]) || '<span class="muted">—</span>'}</td>`).join("")}
+      </tr>`).join("");
+    const a = slot(b.id);
+    return `<div class="card" id="card_${b.id}">
+      <div class="head">
+        <span class="bid">${b.id}</span>
+        <span>${esc(b.show)} · ${b.episode}</span>
+        <span class="tag">${b.genre}</span>
+        <span class="tag">${b.span}</span>
+        <span class="tag">${b.dur}s · ${b.rows.length} 行</span>
+      </div>
+      <div class="vidwrap">
+        ${b.clip ? `<video id="v_${b.id}" controls preload="metadata" playsinline src="${b.clip}"
+               onerror="document.getElementById('nc_${b.id}').style.display='block';this.style.display='none'"></video>` : ""}
+        <div class="noclip" id="nc_${b.id}" style="display:${b.clip ? "none" : "block"}">
+          视频片段 <code>${b.clip || "（无）"}</code> 未就绪 —— 可仅凭文本评分，但请在备注注明"无视频"
+        </div>
+        ${b.vnote ? `<div class="vnote">⚠ ${esc(b.vnote)}</div>` : ""}
+      </div>
+      <div class="tblwrap"><table>
+        <thead><tr><th>时间</th><th class="encol">英文原文</th>
+          ${COLS.map(s => `<th class="ccol" style="border-left-color:${COLOR[s]};color:${COLOR[s]}"
+            >译文 ${s}</th>`).join("")}</tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>
+      <div class="rate">${COLS.map(s => sideBox(b,s)).join("")}</div>
+      ${pickRow(b,'best')}${pickRow(b,'worst')}
+      <textarea rows="2" placeholder="备注（可选）：哪句最能说明差异？" data-note="${b.id}">${esc(a.note)}</textarea>
+      <div class="flag"><label><input type="checkbox" data-bad="${b.id}" ${a.bad?'checked':''}>
+        此段数据有问题（画面/台词对不上，或某栏明显不是同一段）</label></div>
+    </div>`;
+  }).join("");
+  bind();
+  status();
+}
+
+function bind(){
+  document.querySelectorAll('.opts label[data-d]').forEach(el => {
+    el.onclick = () => {
+      const {b, s, d, v} = el.dataset;
+      slot(b).c[s][d] = +v;
+      el.parentElement.querySelectorAll('label').forEach(x => x.classList.remove('on'));
+      el.classList.add('on');
+      save();
+    };
+  });
+  document.querySelectorAll('.opts label[data-pick]').forEach(el => {
+    el.onclick = () => {
+      const {b, pick, col} = el.dataset;
+      const a = slot(b);
+      a[pick] = col;
+      const other = pick === 'best' ? 'worst' : 'best';
+      if(a[other] === col){                       // 最好/最差不能是同一栏
+        a[other] = "";
+        const card = document.getElementById('card_' + b);
+        card.querySelectorAll(`.opts label[data-pick="${other}"]`)
+            .forEach(x => x.classList.remove('on'));
+      }
+      el.parentElement.querySelectorAll('label').forEach(x => x.classList.remove('on'));
+      el.classList.add('on');
+      save();
+    };
+  });
+  document.querySelectorAll('textarea[data-note]').forEach(el => {
+    el.oninput = () => { slot(el.dataset.note).note = el.value; save(); };
+  });
+  document.querySelectorAll('input[data-bad]').forEach(el => {
+    el.onchange = () => { slot(el.dataset.bad).bad = el.checked; save(); };
+  });
+  document.querySelectorAll('.tcol[data-rel]').forEach(el => {
+    el.onclick = () => {
+      const v = document.getElementById('v_' + el.dataset.b);
+      if(v){ v.currentTime = Math.max(0, +el.dataset.rel); v.play(); }
+    };
+  });
+  // 播放时高亮当前行
+  BLOCKS.forEach(b => {
+    const v = document.getElementById('v_' + b.id);
+    if(!v) return;
+    v.ontimeupdate = () => {
+      let k = -1;
+      b.rows.forEach((r,j) => { if(v.currentTime >= r.rel - 0.15) k = j; });
+      b.rows.forEach((r,j) => {
+        const tr = document.getElementById('row_' + b.id + '_' + j);
+        if(tr) tr.classList.toggle('cur', j === k);
+      });
+    };
+  });
+}
+
+function payload(){
+  return {
+    rater, key_b64: KEYB64, cols: COLS,
+    exported_at: new Date().toISOString(),
+    n_blocks: BLOCKS.length,
+    ratings: BLOCKS.map(b => {
+      const a = slot(b.id);
+      return {block_id:b.id, show:b.show, episode:b.episode, genre:b.genre,
+              cols:a.c, best:a.best, worst:a.worst,
+              note:a.note, bad:!!a.bad, done:isDone(b.id)};
+    })
+  };
+}
+function dl(name, text, type){
+  const u = URL.createObjectURL(new Blob([text], {type}));
+  const a = document.createElement('a');
+  a.href = u; a.download = name; a.click(); URL.revokeObjectURL(u);
+}
+
+document.getElementById('rater').oninput = e => {
+  rater = e.target.value.trim();
+  const stored = localStorage.getItem(lsKey());   // 该 ID 有存档才恢复，否则保留当前已填内容
+  if(stored){ try { ans = JSON.parse(stored); } catch(err){} }
+  render(); save();
+};
+document.getElementById('save').onclick = save;
+document.getElementById('exp').onclick = () => {
+  if(!rater){ alert('请先填标注员 ID'); return; }
+  const miss = BLOCKS.filter(b => !isDone(b.id)).map(b => b.id);
+  if(miss.length && !confirm('还有 ' + miss.length + ' 段未完成（' + miss.join(',') + '），仍要导出？')) return;
+  dl('ratings_' + rater + '.json', JSON.stringify(payload(), null, 1), 'application/json');
+};
+document.getElementById('expcsv').onclick = () => {
+  const head = ['rater','block_id','show','episode','genre','col']
+    .concat(DIMS.map(d => d[0])).concat(['best','worst','bad','note']);
+  const lines = [head.join(',')];
+  BLOCKS.forEach(b => {
+    const a = slot(b.id);
+    COLS.forEach(s => {
+      lines.push([rater, b.id, '"'+b.show+'"', b.episode, b.genre, s]
+        .concat(DIMS.map(d => a.c[s][d[0]] || ''))
+        .concat([a.best==s?1:0, a.worst==s?1:0, a.bad?1:0,
+                 '"' + (a.note||'').replace(/"/g,"'") + '"']).join(','));
+    });
+  });
+  dl('ratings_' + (rater||'anon') + '.csv', lines.join('\n'), 'text/csv');
+};
+document.getElementById('clear').onclick = () => {
+  if(confirm('清空本机保存的进度？')){ localStorage.removeItem(lsKey()); ans = {}; render(); }
+};
+
+load(); render();
+</script>
+</body>
+</html>
